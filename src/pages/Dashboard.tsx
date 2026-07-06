@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
-import { Building2, Server, KeyRound, FileText, ListChecks, ArrowRight } from 'lucide-react'
+import { Building2, Server, KeyRound, FileText, ListChecks, ArrowRight, ShieldAlert } from 'lucide-react'
 import { useDataStore } from '@/store/dataStore'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { formatDateTime } from '@/lib/utils'
+import { formatDate, formatDateTime } from '@/lib/utils'
 import { countOpenTasksInNotes } from '@/lib/tasks'
+import { getExpiringWarranties, isWarrantyExpired } from '@/lib/warranty'
+import { DeviceIcon } from '@/lib/device-icons'
 
 export default function Dashboard() {
   const sites = useDataStore((s) => s.sites)
@@ -28,6 +30,13 @@ export default function Dashboard() {
     .slice()
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 8)
+
+  const recentDevices = devices
+    .slice()
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, 6)
+
+  const expiringWarranties = getExpiringWarranties(devices, 90).slice(0, 6)
 
   return (
     <div className="flex flex-col gap-6">
@@ -77,6 +86,59 @@ export default function Dashboard() {
                 </Link>
               )
             })}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle>Zuletzt bearbeitete Geräte</CardTitle>
+            <Link to="/devices" className="flex items-center gap-1 text-xs text-primary hover:underline">
+              Alle ansehen <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-1">
+            {recentDevices.length === 0 && (
+              <p className="text-sm text-muted-foreground">Noch keine Geräte angelegt.</p>
+            )}
+            {recentDevices.map((d) => (
+              <Link
+                key={d.id}
+                to={`/devices/${d.id}`}
+                className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+              >
+                <span className="flex items-center gap-2">
+                  <DeviceIcon type={d.type} className="h-3.5 w-3.5 text-muted-foreground" />
+                  {d.name}
+                </span>
+                <span className="text-xs text-muted-foreground">{formatDateTime(d.updatedAt)}</span>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-warning" /> Ablaufende Garantien (90 Tage)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-1">
+            {expiringWarranties.length === 0 && (
+              <p className="text-sm text-muted-foreground">Keine Garantien laufen in den nächsten 90 Tagen ab.</p>
+            )}
+            {expiringWarranties.map((d) => (
+              <Link
+                key={d.id}
+                to={`/devices/${d.id}`}
+                className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+              >
+                <span>{d.name}</span>
+                <Badge variant={isWarrantyExpired(d.warrantyUntil) ? 'destructive' : 'warning'}>
+                  {isWarrantyExpired(d.warrantyUntil) ? 'abgelaufen ' : 'bis '}
+                  {formatDate(d.warrantyUntil)}
+                </Badge>
+              </Link>
+            ))}
           </CardContent>
         </Card>
 

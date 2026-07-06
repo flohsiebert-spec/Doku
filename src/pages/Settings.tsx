@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Download, Upload, KeyRound, Trash2, FileSpreadsheet, Moon, Sun } from 'lucide-react'
+import { Download, Upload, KeyRound, Trash2, FileSpreadsheet, Moon, Sun, ShieldAlert } from 'lucide-react'
 import { useDataStore } from '@/store/dataStore'
 import { useAuthStore } from '@/store/authStore'
 import { useUiStore } from '@/store/uiStore'
@@ -13,10 +13,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+
+const AUTO_LOCK_OPTIONS = [
+  { value: '5', label: '5 Minuten' },
+  { value: '15', label: '15 Minuten' },
+  { value: '30', label: '30 Minuten' },
+  { value: '60', label: '60 Minuten' },
+  { value: '0', label: 'Nie' },
+]
 
 export default function Settings() {
   const key = useAuthStore((s) => s.key)
+  const autoLockMinutes = useAuthStore((s) => s.autoLockMinutes)
+  const setAutoLockMinutes = useAuthStore((s) => s.setAutoLockMinutes)
   const theme = useUiStore((s) => s.theme)
   const toggleTheme = useUiStore((s) => s.toggleTheme)
   const devices = useDataStore((s) => s.devices)
@@ -152,6 +169,30 @@ export default function Settings() {
               </div>
             </form>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4" /> Sicherheit
+          </CardTitle>
+          <CardDescription>Sperrt die Anwendung automatisch nach Inaktivität.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Auto-Lock</span>
+          <Select value={String(autoLockMinutes)} onValueChange={(v) => setAutoLockMinutes(Number(v))}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {AUTO_LOCK_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 

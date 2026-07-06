@@ -1,15 +1,26 @@
 import { create } from 'zustand'
 import { hasMasterPassword, setupMasterPassword, unlockMasterPassword } from '@/lib/crypto'
 
+const AUTO_LOCK_KEY = 'doku:auto-lock-minutes'
+const DEFAULT_AUTO_LOCK_MINUTES = 15
+
+function getInitialAutoLockMinutes(): number {
+  const stored = localStorage.getItem(AUTO_LOCK_KEY)
+  const parsed = stored ? Number(stored) : DEFAULT_AUTO_LOCK_MINUTES
+  return Number.isFinite(parsed) ? parsed : DEFAULT_AUTO_LOCK_MINUTES
+}
+
 interface AuthState {
   unlocked: boolean
   hasMaster: boolean
   key: CryptoKey | null
   error: string | null
+  autoLockMinutes: number
   refreshHasMaster: () => void
   setup: (password: string) => Promise<boolean>
   unlock: (password: string) => Promise<boolean>
   lock: () => void
+  setAutoLockMinutes: (minutes: number) => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -17,6 +28,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   hasMaster: hasMasterPassword(),
   key: null,
   error: null,
+  autoLockMinutes: getInitialAutoLockMinutes(),
   refreshHasMaster: () => set({ hasMaster: hasMasterPassword() }),
   setup: async (password: string) => {
     if (password.length < 8) {
@@ -37,4 +49,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     return true
   },
   lock: () => set({ unlocked: false, key: null }),
+  setAutoLockMinutes: (minutes: number) => {
+    localStorage.setItem(AUTO_LOCK_KEY, String(minutes))
+    set({ autoLockMinutes: minutes })
+  },
 }))

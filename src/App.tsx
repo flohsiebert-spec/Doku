@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useUiStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { useDataStore } from '@/store/dataStore'
+import { useAutoLock } from '@/hooks/useAutoLock'
 import { UnlockScreen } from '@/pages/UnlockScreen'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Toaster } from '@/components/ui/toaster'
@@ -22,6 +23,8 @@ function App() {
   const unlocked = useAuthStore((s) => s.unlocked)
   const loadAll = useDataStore((s) => s.loadAll)
   const [ready, setReady] = useState(false)
+
+  useAutoLock()
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
