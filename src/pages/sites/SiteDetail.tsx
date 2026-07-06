@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { SiteFormDialog } from '@/pages/sites/SiteFormDialog'
 import { RoomsDevicesSection } from '@/components/sections/rooms-devices-section'
 import { IpamSection } from '@/components/sections/ipam-section'
+import { NetworkDiagramSection } from '@/components/sections/network-diagram-section'
 import { SiteImagesSection } from '@/components/sections/site-images-section'
 import { CredentialsSection } from '@/components/sections/credentials-section'
 import { DocumentsSection } from '@/components/sections/documents-section'
@@ -107,6 +108,7 @@ export default function SiteDetail() {
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="rooms">Räume & Geräte</TabsTrigger>
           <TabsTrigger value="ipam">IP-Adressen</TabsTrigger>
+          <TabsTrigger value="diagram">Netzwerkdiagramm</TabsTrigger>
           <TabsTrigger value="images">Bilder</TabsTrigger>
           <TabsTrigger value="credentials">Zugangsdaten</TabsTrigger>
           <TabsTrigger value="documents">Dokumente</TabsTrigger>
@@ -118,6 +120,9 @@ export default function SiteDetail() {
         </TabsContent>
         <TabsContent value="ipam">
           <IpamSection siteId={site.id} />
+        </TabsContent>
+        <TabsContent value="diagram">
+          <NetworkDiagramSection siteId={site.id} />
         </TabsContent>
         <TabsContent value="images">
           <SiteImagesSection siteId={site.id} />
