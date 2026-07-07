@@ -24,6 +24,31 @@ export interface DecryptedCredential {
   url: string
 }
 
+/**
+ * Embedded/sandboxed contexts (e.g. a preview iframe) can silently swallow the
+ * programmatic <a download> click that jsPDF's `.save()` relies on, and depending
+ * on the host's sandbox flags a `window.open()` popup may be blocked instead.
+ * Since a blocked download fails silently either way, try both: whichever
+ * mechanism the host allows gets the PDF to the user.
+ */
+function savePdf(doc: jsPDF, filename: string) {
+  let inIframe = true
+  try {
+    inIframe = window.self !== window.top
+  } catch {
+    inIframe = true
+  }
+
+  if (!inIframe) {
+    doc.save(filename)
+    return
+  }
+
+  const blobUrl = doc.output('bloburl')
+  window.open(blobUrl.toString(), '_blank')
+  doc.save(filename)
+}
+
 function addCoverPage(doc: jsPDF, title: string, subtitle?: string) {
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -155,7 +180,7 @@ export function generateSiteReport(params: {
   })
 
   addFootersAndPageNumbers(doc)
-  doc.save(`standort-report-${site.name}.pdf`)
+  savePdf(doc, `standort-report-${site.name}.pdf`)
 }
 
 export function generateInventoryReport(devices: Device[], sites: Site[]) {
@@ -173,7 +198,7 @@ export function generateInventoryReport(devices: Device[], sites: Site[]) {
   })
 
   addFootersAndPageNumbers(doc)
-  doc.save('inventar-report.pdf')
+  savePdf(doc, 'inventar-report.pdf')
 }
 
 export function generateWarrantyReport(devices: Device[], sites: Site[]) {
@@ -206,5 +231,5 @@ export function generateWarrantyReport(devices: Device[], sites: Site[]) {
   })
 
   addFootersAndPageNumbers(doc)
-  doc.save('garantie-report.pdf')
+  savePdf(doc, 'garantie-report.pdf')
 }

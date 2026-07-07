@@ -32,13 +32,32 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / 1024 ** i).toFixed(i === 0 ? 0 : 1)} ${units[i]}`
 }
 
+/**
+ * Embedded/sandboxed contexts (e.g. a preview iframe) can silently swallow a
+ * programmatic <a download> click, and depending on the host's sandbox flags a
+ * `window.open()` popup may be blocked instead. Since a blocked download fails
+ * silently either way, try both in that case: whichever mechanism the host
+ * allows gets the file to the user. Top-level pages keep the direct download.
+ */
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
+  let inIframe = true
+  try {
+    inIframe = window.self !== window.top
+  } catch {
+    inIframe = true
+  }
+
+  if (inIframe) {
+    window.open(url, '_blank')
+  }
+
   const a = document.createElement('a')
   a.href = url
   a.download = filename
   document.body.appendChild(a)
   a.click()
   a.remove()
-  URL.revokeObjectURL(url)
+  // Delay revocation so a slower-loading popup tab still gets to read the blob.
+  setTimeout(() => URL.revokeObjectURL(url), 30000)
 }
