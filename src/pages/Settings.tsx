@@ -1,13 +1,14 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Download, Upload, KeyRound, Trash2, FileSpreadsheet, Moon, Sun, ShieldAlert } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Download, Upload, KeyRound, Trash2, FileSpreadsheet, Moon, Sun, ShieldAlert, Users, History } from 'lucide-react'
 import { useDataStore } from '@/store/dataStore'
 import { useAuthStore } from '@/store/authStore'
 import { useUiStore } from '@/store/uiStore'
 import { createBackup, restoreBackup, applyBackup } from '@/lib/backup'
 import { devicesToCsv } from '@/lib/csv'
 import { downloadBlob } from '@/lib/utils'
-import { changeMasterPassword, decryptString, encryptString } from '@/lib/crypto'
-import { credentialsRepo, wipeAllData } from '@/db/repository'
+import { canManageUsers } from '@/lib/permissions'
+import { wipeAllData } from '@/db/repository'
 import { toast } from '@/store/toastStore'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,7 +32,9 @@ const AUTO_LOCK_OPTIONS = [
 ]
 
 export default function Settings() {
-  const key = useAuthStore((s) => s.key)
+  const dataKey = useAuthStore((s) => s.dataKey)
+  const currentUser = useAuthStore((s) => s.currentUser)
+  const changeOwnPassword = useAuthStore((s) => s.changeOwnPassword)
   const autoLockMinutes = useAuthStore((s) => s.autoLockMinutes)
   const setAutoLockMinutes = useAuthStore((s) => s.setAutoLockMinutes)
   const theme = useUiStore((s) => s.theme)
@@ -41,17 +44,22 @@ export default function Settings() {
   const loadAll = useDataStore((s) => s.loadAll)
 
   const importInputRef = useRef<HTMLInputElement | null>(null)
+  const [exportPassword, setExportPassword] = useState('')
+  const [exportOpen, setExportOpen] = useState(false)
   const [importPassword, setImportPassword] = useState('')
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null)
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [wipeOpen, setWipeOpen] = useState(false)
 
-  async function handleExportJson() {
-    if (!key) return
-    const json = await createBackup(key)
+  async function handleExportJson(e: FormEvent) {
+    e.preventDefault()
+    if (!dataKey) return
+    const json = await createBackup(dataKey, exportPassword)
     downloadBlob(new Blob([json], { type: 'application/json' }), `it-doku-backup-${Date.now()}.json`)
     toast({ title: 'Backup exportiert', variant: 'success' })
+    setExportPassword('')
+    setExportOpen(false)
   }
 
   function handleExportCsv() {
@@ -68,11 +76,11 @@ export default function Settings() {
 
   async function confirmImport(e: FormEvent) {
     e.preventDefault()
-    if (!pendingImportFile) return
+    if (!pendingImportFile || !dataKey) return
     try {
       const content = await pendingImportFile.text()
       const data = await restoreBackup(content, importPassword)
-      await applyBackup(data)
+      await applyBackup(data, dataKey)
       await loadAll()
       toast({ title: 'Backup wiederhergestellt', variant: 'success' })
       setPendingImportFile(null)
@@ -84,22 +92,13 @@ export default function Settings() {
 
   async function handleChangePassword(e: FormEvent) {
     e.preventDefault()
-    const ok = await changeMasterPassword(oldPassword, newPassword, async (oldKey, newKey) => {
-      const all = await credentialsRepo.getAll()
-      for (const cred of all) {
-        const plain = await decryptString(cred.encryptedPassword, oldKey)
-        const reencrypted = await encryptString(plain, newKey)
-        await credentialsRepo.update(cred.id, { encryptedPassword: reencrypted })
-      }
-      useAuthStore.setState({ key: newKey })
-    })
+    const ok = await changeOwnPassword(oldPassword, newPassword)
     if (ok) {
-      toast({ title: 'Master-Passwort geändert', variant: 'success' })
+      toast({ title: 'Passwort geändert', variant: 'success' })
       setOldPassword('')
       setNewPassword('')
-      await loadAll()
     } else {
-      toast({ title: 'Falsches aktuelles Passwort', variant: 'destructive' })
+      toast({ title: 'Passwort ändern fehlgeschlagen', variant: 'destructive' })
     }
   }
 
@@ -125,14 +124,36 @@ export default function Settings() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Verwaltung</CardTitle>
+          <CardDescription>Benutzerkonten und Änderungsprotokoll.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          {canManageUsers(currentUser?.role) && (
+            <Button variant="outline" asChild>
+              <Link to="/users">
+                <Users className="h-4 w-4" /> Benutzerverwaltung
+              </Link>
+            </Button>
+          )}
+          <Button variant="outline" asChild>
+            <Link to="/audit">
+              <History className="h-4 w-4" /> Audit-Log
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Backup & Export</CardTitle>
           <CardDescription>
-            Der JSON-Export enthält die komplette Datenbank verschlüsselt mit deinem Master-Passwort.
+            Der JSON-Export ist mit einem separaten Backup-Passwort verschlüsselt und lässt sich auf
+            jeder Installation wiederherstellen.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <div className="flex flex-wrap gap-2">
-            <Button onClick={handleExportJson}>
+            <Button onClick={() => setExportOpen(true)}>
               <Download className="h-4 w-4" /> JSON-Backup exportieren
             </Button>
             <Button variant="outline" onClick={handleExportCsv}>
@@ -144,13 +165,36 @@ export default function Settings() {
             <input ref={importInputRef} type="file" accept="application/json" className="hidden" onChange={selectImportFile} />
           </div>
 
+          {exportOpen && (
+            <form onSubmit={handleExportJson} className="flex flex-col gap-2 rounded-md border border-border p-3">
+              <Label htmlFor="export-password">Backup-Passwort festlegen</Label>
+              <Input
+                id="export-password"
+                type="password"
+                autoFocus
+                minLength={8}
+                value={exportPassword}
+                onChange={(e) => setExportPassword(e.target.value)}
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Merke dir dieses Passwort gut – ohne es lässt sich die Backup-Datei nicht wiederherstellen.
+              </p>
+              <div className="flex gap-2">
+                <Button type="submit">Exportieren</Button>
+                <Button type="button" variant="outline" onClick={() => setExportOpen(false)}>
+                  Abbrechen
+                </Button>
+              </div>
+            </form>
+          )}
+
           {pendingImportFile && (
             <form onSubmit={confirmImport} className="flex flex-col gap-2 rounded-md border border-border p-3">
               <p className="text-sm">
-                Datei <strong>{pendingImportFile.name}</strong> wird geladen. Bitte das Master-Passwort
-                eingeben, mit dem dieses Backup erstellt wurde.
+                Datei <strong>{pendingImportFile.name}</strong> wird geladen. Bitte das Backup-Passwort eingeben.
               </p>
-              <Label htmlFor="import-password">Master-Passwort des Backups</Label>
+              <Label htmlFor="import-password">Backup-Passwort</Label>
               <Input
                 id="import-password"
                 type="password"
@@ -199,9 +243,9 @@ export default function Settings() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <KeyRound className="h-4 w-4" /> Master-Passwort ändern
+            <KeyRound className="h-4 w-4" /> Mein Passwort ändern
           </CardTitle>
-          <CardDescription>Alle gespeicherten Zugangsdaten werden neu verschlüsselt.</CardDescription>
+          <CardDescription>Betrifft nur dein eigenes Benutzerkonto ({currentUser?.displayName}).</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleChangePassword} className="flex flex-col gap-3">
@@ -230,7 +274,7 @@ export default function Settings() {
       <Card className="border-destructive/40">
         <CardHeader>
           <CardTitle className="text-destructive">Gefahrenzone</CardTitle>
-          <CardDescription>Alle Daten unwiderruflich löschen.</CardDescription>
+          <CardDescription>Alle Daten unwiderruflich löschen (Benutzerkonten bleiben erhalten).</CardDescription>
         </CardHeader>
         <CardContent>
           <Button variant="destructive" onClick={() => setWipeOpen(true)}>

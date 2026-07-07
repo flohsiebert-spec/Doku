@@ -1,11 +1,15 @@
-import type { Device, Site } from '@/types'
+import type { AuditLogEntry, Device, Site, Vlan } from '@/types'
 import { DEVICE_TYPES } from '@/types'
 
-function csvEscape(value: string): string {
+export function csvEscape(value: string): string {
   if (/[",\n;]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`
   }
   return value
+}
+
+export function toCsv(headers: string[], rows: string[][]): string {
+  return [headers.join(';'), ...rows.map((r) => r.map(csvEscape).join(';'))].join('\n')
 }
 
 export function devicesToCsv(devices: Device[], sites: Site[]): string {
@@ -53,4 +57,34 @@ export function devicesToCsv(devices: Device[], sites: Site[]): string {
     ].map(csvEscape)
   })
   return [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n')
+}
+
+export function vlansToCsv(vlans: Vlan[]): string {
+  const headers = ['VLAN-ID', 'Name', 'Beschreibung', 'Subnetz']
+  const rows = vlans
+    .slice()
+    .sort((a, b) => a.vlanId - b.vlanId)
+    .map((v) => [String(v.vlanId), v.name, v.description, v.subnet])
+  return toCsv(headers, rows)
+}
+
+const AUDIT_ACTION_LABELS: Record<AuditLogEntry['action'], string> = {
+  create: 'Angelegt',
+  update: 'Geändert',
+  delete: 'Gelöscht',
+}
+
+export function auditLogToCsv(entries: AuditLogEntry[]): string {
+  const headers = ['Zeitstempel', 'Benutzer', 'Aktion', 'Objekttyp', 'Objekt', 'Feld', 'Alter Wert', 'Neuer Wert']
+  const rows = entries.map((e) => [
+    e.createdAt,
+    e.username,
+    AUDIT_ACTION_LABELS[e.action],
+    e.entityType,
+    e.entityLabel,
+    e.field,
+    e.oldValue,
+    e.newValue,
+  ])
+  return toCsv(headers, rows)
 }

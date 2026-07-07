@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Building2, Server, KeyRound, FileText, NotebookText } from 'lucide-react'
+import { Building2, Server, KeyRound, FileText, NotebookText, Network, ShieldCheck } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useUiStore } from '@/store/uiStore'
@@ -8,7 +8,7 @@ import { useDataStore } from '@/store/dataStore'
 
 interface Result {
   id: string
-  type: 'site' | 'device' | 'credential' | 'document' | 'note'
+  type: 'site' | 'device' | 'credential' | 'document' | 'note' | 'vlan' | 'certificate'
   title: string
   subtitle: string
   path: string
@@ -25,6 +25,8 @@ export function CommandPalette() {
   const credentials = useDataStore((s) => s.credentials)
   const documents = useDataStore((s) => s.documents)
   const notes = useDataStore((s) => s.notes)
+  const vlans = useDataStore((s) => s.vlans)
+  const certificates = useDataStore((s) => s.certificates)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -84,8 +86,18 @@ export function CommandPalette() {
         out.push({ id: n.id, type: 'note', title: n.title, subtitle: 'Notiz', path: '/notes' })
       }
     }
+    for (const v of vlans) {
+      if (v.name.toLowerCase().includes(q) || String(v.vlanId).includes(q) || v.subnet.toLowerCase().includes(q)) {
+        out.push({ id: v.id, type: 'vlan', title: `VLAN ${v.vlanId} · ${v.name}`, subtitle: v.subnet, path: `/sites/${v.siteId}` })
+      }
+    }
+    for (const c of certificates) {
+      if (c.domain.toLowerCase().includes(q) || c.issuer.toLowerCase().includes(q)) {
+        out.push({ id: c.id, type: 'certificate', title: c.domain, subtitle: c.issuer, path: `/sites/${c.siteId}` })
+      }
+    }
     return out.slice(0, 30)
-  }, [query, sites, devices, credentials, documents, notes])
+  }, [query, sites, devices, credentials, documents, notes, vlans, certificates])
 
   const icons = {
     site: Building2,
@@ -93,6 +105,8 @@ export function CommandPalette() {
     credential: KeyRound,
     document: FileText,
     note: NotebookText,
+    vlan: Network,
+    certificate: ShieldCheck,
   }
 
   function go(path: string) {
@@ -107,7 +121,7 @@ export function CommandPalette() {
         <div className="border-b border-border p-3">
           <Input
             autoFocus
-            placeholder="Standorte, Geräte, IPs, MAC, Zugangsdaten, Dokumente, Notizen…"
+            placeholder="Standorte, Geräte, IPs, MAC, Zugangsdaten, VLANs, Zertifikate, Dokumente, Notizen…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />

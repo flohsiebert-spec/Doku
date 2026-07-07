@@ -4,7 +4,7 @@ import { useUiStore } from '@/store/uiStore'
 import { useAuthStore } from '@/store/authStore'
 import { useDataStore } from '@/store/dataStore'
 import { useAutoLock } from '@/hooks/useAutoLock'
-import { UnlockScreen } from '@/pages/UnlockScreen'
+import { AuthGate } from '@/pages/auth/AuthGate'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Toaster } from '@/components/ui/toaster'
 import Dashboard from '@/pages/Dashboard'
@@ -16,11 +16,16 @@ import CredentialList from '@/pages/credentials/CredentialList'
 import DocumentList from '@/pages/documents/DocumentList'
 import NoteList from '@/pages/notes/NoteList'
 import Settings from '@/pages/Settings'
+import UserManagement from '@/pages/UserManagement'
+import AuditLog from '@/pages/AuditLog'
+import Reports from '@/pages/Reports'
 import NotFound from '@/pages/NotFound'
 
 function App() {
   const theme = useUiStore((s) => s.theme)
+  const booted = useAuthStore((s) => s.booted)
   const unlocked = useAuthStore((s) => s.unlocked)
+  const boot = useAuthStore((s) => s.boot)
   const loadAll = useDataStore((s) => s.loadAll)
   const [ready, setReady] = useState(false)
 
@@ -31,15 +36,29 @@ function App() {
   }, [theme])
 
   useEffect(() => {
+    boot()
+  }, [boot])
+
+  useEffect(() => {
     if (unlocked) {
       loadAll().then(() => setReady(true))
+    } else {
+      setReady(false)
     }
   }, [unlocked, loadAll])
+
+  if (!booted) {
+    return (
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
+        Lade…
+      </div>
+    )
+  }
 
   if (!unlocked) {
     return (
       <>
-        <UnlockScreen />
+        <AuthGate />
         <Toaster />
       </>
     )
@@ -65,6 +84,9 @@ function App() {
           <Route path="/credentials" element={<CredentialList />} />
           <Route path="/documents" element={<DocumentList />} />
           <Route path="/notes" element={<NoteList />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/audit" element={<AuditLog />} />
+          <Route path="/users" element={<UserManagement />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Route>

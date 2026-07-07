@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { DEVICE_TYPES, type Device, type DeviceType } from '@/types'
+import { DEVICE_TYPES, PATCH_PANEL_SIZES, PORTED_DEVICE_TYPES, type Device, type DeviceType } from '@/types'
 
 interface DeviceFormDialogProps {
   open: boolean
@@ -51,6 +51,7 @@ const emptyForm = {
   warrantyUntil: '',
   supplier: '',
   notes: '',
+  portCount: 24,
 }
 
 export function DeviceFormDialog({ open, onOpenChange, device, defaultSiteId, defaultRoomId }: DeviceFormDialogProps) {
@@ -85,6 +86,7 @@ export function DeviceFormDialog({ open, onOpenChange, device, defaultSiteId, de
               warrantyUntil: device.warrantyUntil,
               supplier: device.supplier,
               notes: device.notes,
+              portCount: device.portCount || 24,
             }
           : { ...emptyForm, siteId: defaultSiteId ?? '', roomId: defaultRoomId ?? '' },
       )
@@ -94,11 +96,17 @@ export function DeviceFormDialog({ open, onOpenChange, device, defaultSiteId, de
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!form.name.trim() || !form.siteId) return
+    const data = {
+      ...form,
+      rackId: device?.rackId ?? '',
+      rackUnit: device?.rackUnit ?? null,
+      heSize: device?.heSize ?? 1,
+    }
     if (device) {
-      await updateDevice(device.id, form)
+      await updateDevice(device.id, data)
       toast({ title: 'Gerät aktualisiert', variant: 'success' })
     } else {
-      await createDevice(form)
+      await createDevice(data)
       toast({ title: 'Gerät angelegt', variant: 'success' })
     }
     onOpenChange(false)
@@ -171,9 +179,37 @@ export function DeviceFormDialog({ open, onOpenChange, device, defaultSiteId, de
             </Select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="dev-rack">Rack-Position</Label>
+            <Label htmlFor="dev-rack">Rack-Position (Notiz)</Label>
             <Input id="dev-rack" value={form.rackPosition} onChange={(e) => setForm({ ...form, rackPosition: e.target.value })} />
           </div>
+
+          {PORTED_DEVICE_TYPES.includes(form.type) && (
+            <div className="flex flex-col gap-1.5">
+              <Label>Anzahl Ports</Label>
+              {form.type === 'patch-panel' ? (
+                <Select value={String(form.portCount)} onValueChange={(v) => setForm({ ...form, portCount: Number(v) })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PATCH_PANEL_SIZES.map((size) => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size} Ports
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  type="number"
+                  min={1}
+                  max={128}
+                  value={form.portCount}
+                  onChange={(e) => setForm({ ...form, portCount: Number(e.target.value) })}
+                />
+              )}
+            </div>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="dev-ipv4">IPv4-Adresse</Label>

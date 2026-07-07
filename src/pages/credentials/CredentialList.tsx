@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Plus, KeyRound, Search } from 'lucide-react'
 import { useDataStore } from '@/store/dataStore'
+import { useAuthStore } from '@/store/authStore'
+import { canWrite } from '@/lib/permissions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -21,6 +23,7 @@ export default function CredentialList() {
   const sites = useDataStore((s) => s.sites)
   const devices = useDataStore((s) => s.devices)
   const deleteCredential = useDataStore((s) => s.deleteCredential)
+  const canEdit = canWrite(useAuthStore((s) => s.currentUser?.role))
 
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
@@ -54,14 +57,16 @@ export default function CredentialList() {
           <h1 className="text-2xl font-semibold">Zugangsdaten</h1>
           <p className="text-sm text-muted-foreground">Verschlüsselter Credential Store.</p>
         </div>
-        <Button
-          onClick={() => {
-            setEditing(undefined)
-            setFormOpen(true)
-          }}
-        >
-          <Plus className="h-4 w-4" /> Zugangsdaten anlegen
-        </Button>
+        {canEdit && (
+          <Button
+            onClick={() => {
+              setEditing(undefined)
+              setFormOpen(true)
+            }}
+          >
+            <Plus className="h-4 w-4" /> Zugangsdaten anlegen
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">

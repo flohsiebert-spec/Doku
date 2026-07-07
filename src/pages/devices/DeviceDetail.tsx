@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { Pencil, Trash2, MapPin, QrCode } from 'lucide-react'
 import { useDataStore } from '@/store/dataStore'
+import { useAuthStore } from '@/store/authStore'
+import { canWrite } from '@/lib/permissions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -12,6 +14,7 @@ import { CredentialsSection } from '@/components/sections/credentials-section'
 import { DocumentsSection } from '@/components/sections/documents-section'
 import { NotesSection } from '@/components/sections/notes-section'
 import { ChangelogSection } from '@/components/sections/changelog-section'
+import { DeviceCablesSection } from '@/components/sections/device-cables-section'
 import { InlineEditField } from '@/components/inline-edit-field'
 import { DeviceIcon } from '@/lib/device-icons'
 import { formatDateTime } from '@/lib/utils'
@@ -26,6 +29,7 @@ export default function DeviceDetail() {
   const room = useDataStore((s) => s.rooms).find((r) => r.id === device?.roomId)
   const deleteDevice = useDataStore((s) => s.deleteDevice)
   const updateDevice = useDataStore((s) => s.updateDevice)
+  const canEdit = canWrite(useAuthStore((s) => s.currentUser?.role))
 
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -59,12 +63,16 @@ export default function DeviceDetail() {
           <Button variant="outline" onClick={() => setQrOpen(true)}>
             <QrCode className="h-4 w-4" /> QR-Code
           </Button>
-          <Button variant="outline" onClick={() => setEditOpen(true)}>
-            <Pencil className="h-4 w-4" /> Bearbeiten
-          </Button>
-          <Button variant="outline" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="h-4 w-4 text-destructive" /> Löschen
-          </Button>
+          {canEdit && (
+            <>
+              <Button variant="outline" onClick={() => setEditOpen(true)}>
+                <Pencil className="h-4 w-4" /> Bearbeiten
+              </Button>
+              <Button variant="outline" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="h-4 w-4 text-destructive" /> Löschen
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -72,6 +80,7 @@ export default function DeviceDetail() {
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="general">Allgemein</TabsTrigger>
           <TabsTrigger value="network">Netzwerk</TabsTrigger>
+          <TabsTrigger value="cabling">Kabel</TabsTrigger>
           <TabsTrigger value="credentials">Zugangsdaten</TabsTrigger>
           <TabsTrigger value="documents">Dokumente</TabsTrigger>
           <TabsTrigger value="changelog">Changelog</TabsTrigger>
@@ -81,20 +90,20 @@ export default function DeviceDetail() {
         <TabsContent value="general">
           <Card>
             <CardContent className="grid grid-cols-1 gap-x-8 gap-y-1 p-4 sm:grid-cols-2">
-              <InlineEditField label="Hostname" value={device.hostname} onSave={save('hostname')} mono />
+              <InlineEditField label="Hostname" value={device.hostname} onSave={save('hostname')} mono  disabled={!canEdit} />
               <div className="flex flex-col gap-0.5 rounded-md p-1">
                 <span className="text-xs text-muted-foreground">Typ</span>
                 <span className="text-sm">{DEVICE_TYPES.find((t) => t.value === device.type)?.label}</span>
               </div>
-              <InlineEditField label="Hersteller" value={device.manufacturer} onSave={save('manufacturer')} />
-              <InlineEditField label="Modell" value={device.model} onSave={save('model')} />
-              <InlineEditField label="Seriennummer" value={device.serialNumber} onSave={save('serialNumber')} mono />
-              <InlineEditField label="Rack-Position" value={device.rackPosition} onSave={save('rackPosition')} />
-              <InlineEditField label="Betriebssystem / Firmware" value={device.os} onSave={save('os')} />
-              <InlineEditField label="Firmware-Version" value={device.firmwareVersion} onSave={save('firmwareVersion')} mono />
-              <InlineEditField label="Kaufdatum" type="date" value={device.purchaseDate} onSave={save('purchaseDate')} />
-              <InlineEditField label="Garantie bis" type="date" value={device.warrantyUntil} onSave={save('warrantyUntil')} />
-              <InlineEditField label="Lieferant" value={device.supplier} onSave={save('supplier')} />
+              <InlineEditField label="Hersteller" value={device.manufacturer} onSave={save('manufacturer')}  disabled={!canEdit} />
+              <InlineEditField label="Modell" value={device.model} onSave={save('model')}  disabled={!canEdit} />
+              <InlineEditField label="Seriennummer" value={device.serialNumber} onSave={save('serialNumber')} mono  disabled={!canEdit} />
+              <InlineEditField label="Rack-Position" value={device.rackPosition} onSave={save('rackPosition')}  disabled={!canEdit} />
+              <InlineEditField label="Betriebssystem / Firmware" value={device.os} onSave={save('os')}  disabled={!canEdit} />
+              <InlineEditField label="Firmware-Version" value={device.firmwareVersion} onSave={save('firmwareVersion')} mono  disabled={!canEdit} />
+              <InlineEditField label="Kaufdatum" type="date" value={device.purchaseDate} onSave={save('purchaseDate')}  disabled={!canEdit} />
+              <InlineEditField label="Garantie bis" type="date" value={device.warrantyUntil} onSave={save('warrantyUntil')}  disabled={!canEdit} />
+              <InlineEditField label="Lieferant" value={device.supplier} onSave={save('supplier')}  disabled={!canEdit} />
               <div className="flex flex-col gap-0.5 rounded-md p-1">
                 <span className="text-xs text-muted-foreground">Zuletzt aktualisiert</span>
                 <span className="text-sm">{formatDateTime(device.updatedAt)}</span>
@@ -105,7 +114,7 @@ export default function DeviceDetail() {
                   type="textarea"
                   value={device.notes}
                   onSave={save('notes')}
-                />
+                 disabled={!canEdit} />
               </div>
             </CardContent>
           </Card>
@@ -114,13 +123,17 @@ export default function DeviceDetail() {
         <TabsContent value="network">
           <Card>
             <CardContent className="grid grid-cols-1 gap-x-8 gap-y-1 p-4 sm:grid-cols-2">
-              <InlineEditField label="IPv4-Adresse" value={device.ipv4} onSave={save('ipv4')} mono />
-              <InlineEditField label="IPv6-Adresse" value={device.ipv6} onSave={save('ipv6')} mono />
-              <InlineEditField label="Subnetz" value={device.subnet} onSave={save('subnet')} mono />
-              <InlineEditField label="Gateway" value={device.gateway} onSave={save('gateway')} mono />
-              <InlineEditField label="MAC-Adresse" value={device.mac} onSave={save('mac')} mono />
+              <InlineEditField label="IPv4-Adresse" value={device.ipv4} onSave={save('ipv4')} mono  disabled={!canEdit} />
+              <InlineEditField label="IPv6-Adresse" value={device.ipv6} onSave={save('ipv6')} mono  disabled={!canEdit} />
+              <InlineEditField label="Subnetz" value={device.subnet} onSave={save('subnet')} mono  disabled={!canEdit} />
+              <InlineEditField label="Gateway" value={device.gateway} onSave={save('gateway')} mono  disabled={!canEdit} />
+              <InlineEditField label="MAC-Adresse" value={device.mac} onSave={save('mac')} mono  disabled={!canEdit} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="cabling">
+          <DeviceCablesSection deviceId={device.id} />
         </TabsContent>
 
         <TabsContent value="credentials">

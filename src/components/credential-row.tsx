@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Eye, EyeOff, Copy, Pencil, Trash2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { decryptString } from '@/lib/crypto'
+import { canViewSecrets, canWrite } from '@/lib/permissions'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/store/toastStore'
@@ -15,16 +16,19 @@ interface CredentialRowProps {
 }
 
 export function CredentialRow({ credential, onEdit, onDelete, contextLabel }: CredentialRowProps) {
-  const key = useAuthStore((s) => s.key)
+  const dataKey = useAuthStore((s) => s.dataKey)
+  const role = useAuthStore((s) => s.currentUser?.role)
   const [revealed, setRevealed] = useState<string | null>(null)
+  const canSeeSecret = canViewSecrets(role)
+  const canEdit = canWrite(role)
 
   async function reveal() {
     if (revealed !== null) {
       setRevealed(null)
       return
     }
-    if (!key) return
-    const plain = await decryptString(credential.encryptedPassword, key)
+    if (!dataKey) return
+    const plain = await decryptString(credential.encryptedPassword, dataKey)
     setRevealed(plain)
   }
 
@@ -34,8 +38,8 @@ export function CredentialRow({ credential, onEdit, onDelete, contextLabel }: Cr
   }
 
   async function copyPassword() {
-    if (!key) return
-    const plain = await decryptString(credential.encryptedPassword, key)
+    if (!dataKey) return
+    const plain = await decryptString(credential.encryptedPassword, dataKey)
     await copy(plain, 'Passwort')
   }
 
@@ -55,24 +59,32 @@ export function CredentialRow({ credential, onEdit, onDelete, contextLabel }: Cr
               {credential.username} <Copy className="h-3 w-3" />
             </button>
           )}
-          <button onClick={reveal} className="flex items-center gap-1 font-mono hover:text-foreground">
-            {revealed !== null ? revealed : '••••••••'}
-            {revealed !== null ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-          </button>
-          <button onClick={copyPassword} className="flex items-center gap-1 hover:text-foreground">
-            Kopieren <Copy className="h-3 w-3" />
-          </button>
+          {canSeeSecret ? (
+            <>
+              <button onClick={reveal} className="flex items-center gap-1 font-mono hover:text-foreground">
+                {revealed !== null ? revealed : '••••••••'}
+                {revealed !== null ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              </button>
+              <button onClick={copyPassword} className="flex items-center gap-1 hover:text-foreground">
+                Kopieren <Copy className="h-3 w-3" />
+              </button>
+            </>
+          ) : (
+            <span className="font-mono">••••••••</span>
+          )}
           {credential.url && <span className="truncate">{credential.url}</span>}
         </div>
       </div>
-      <div className="flex items-center gap-1 self-end sm:self-auto">
-        <Button variant="ghost" size="icon" onClick={onEdit}>
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={onDelete}>
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
-      </div>
+      {canEdit && (
+        <div className="flex items-center gap-1 self-end sm:self-auto">
+          <Button variant="ghost" size="icon" onClick={onEdit}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onDelete}>
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Trash2, Image as ImageIcon, Expand } from 'lucide-react'
 import { useDataStore } from '@/store/dataStore'
+import { useAuthStore } from '@/store/authStore'
+import { canWrite } from '@/lib/permissions'
 import { Dropzone } from '@/components/dropzone'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -32,6 +34,7 @@ export function SiteImagesSection({ siteId }: SiteImagesSectionProps) {
   const siteImages = useDataStore((s) => s.siteImages)
   const createSiteImage = useDataStore((s) => s.createSiteImage)
   const deleteSiteImage = useDataStore((s) => s.deleteSiteImage)
+  const canEdit = canWrite(useAuthStore((s) => s.currentUser?.role))
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [preview, setPreview] = useState<SiteImage | undefined>(undefined)
   const [pendingKind, setPendingKind] = useState<SiteImage['kind']>('photo')
@@ -57,24 +60,28 @@ export function SiteImagesSection({ siteId }: SiteImagesSectionProps) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Bilder & Pläne</h3>
-        <Select value={pendingKind} onValueChange={(v) => setPendingKind(v as SiteImage['kind'])}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(KIND_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {canEdit && (
+          <Select value={pendingKind} onValueChange={(v) => setPendingKind(v as SiteImage['kind'])}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(KIND_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
-      <Dropzone
-        onFiles={handleUpload}
-        accept={{ 'image/*': [] }}
-        label="Grundrisse, Fotos oder Netzwerkpläne hierher ziehen"
-      />
+      {canEdit && (
+        <Dropzone
+          onFiles={handleUpload}
+          accept={{ 'image/*': [] }}
+          label="Grundrisse, Fotos oder Netzwerkpläne hierher ziehen"
+        />
+      )}
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-8 text-center">
@@ -95,9 +102,11 @@ export function SiteImagesSection({ siteId }: SiteImagesSectionProps) {
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-white hover:bg-white/20 hover:text-white" onClick={() => setPreview(img)}>
                   <Expand className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-white hover:bg-white/20 hover:text-white" onClick={() => setDeleteId(img.id)}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                {canEdit && (
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-white hover:bg-white/20 hover:text-white" onClick={() => setDeleteId(img.id)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
             </div>
           ))}

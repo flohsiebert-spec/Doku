@@ -56,15 +56,15 @@ export function CredentialFormDialog({
   const updateCredential = useDataStore((s) => s.updateCredential)
   const sites = useDataStore((s) => s.sites)
   const devices = useDataStore((s) => s.devices)
-  const key = useAuthStore((s) => s.key)
+  const dataKey = useAuthStore((s) => s.dataKey)
   const [form, setForm] = useState(emptyForm)
   const [generatorOpen, setGeneratorOpen] = useState(false)
 
   useEffect(() => {
     if (!open) return
     async function load() {
-      if (credential && key) {
-        const password = await decryptString(credential.encryptedPassword, key)
+      if (credential && dataKey) {
+        const password = await decryptString(credential.encryptedPassword, dataKey)
         setForm({
           title: credential.title,
           username: credential.username,
@@ -80,12 +80,12 @@ export function CredentialFormDialog({
       }
     }
     load()
-  }, [open, credential, key, defaultSiteId, defaultDeviceId])
+  }, [open, credential, dataKey, defaultSiteId, defaultDeviceId])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!key || !form.title.trim()) return
-    const encryptedPassword = await encryptString(form.password, key)
+    if (!dataKey || !form.title.trim()) return
+    const encryptedPassword = await encryptString(form.password, dataKey)
     const data = {
       title: form.title,
       username: form.username,
@@ -112,7 +112,7 @@ export function CredentialFormDialog({
         <DialogHeader>
           <DialogTitle>{credential ? 'Zugangsdaten bearbeiten' : 'Neue Zugangsdaten'}</DialogTitle>
           <DialogDescription>
-            Passwörter werden AES-256-verschlüsselt mit deinem Master-Passwort gespeichert.
+            Passwörter werden AES-256-verschlüsselt gespeichert.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">

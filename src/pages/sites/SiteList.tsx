@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Building2, MapPin, Server } from 'lucide-react'
 import { useDataStore } from '@/store/dataStore'
+import { useAuthStore } from '@/store/authStore'
+import { canWrite } from '@/lib/permissions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SiteFormDialog } from '@/pages/sites/SiteFormDialog'
@@ -9,6 +11,7 @@ import { SiteFormDialog } from '@/pages/sites/SiteFormDialog'
 export default function SiteList() {
   const sites = useDataStore((s) => s.sites)
   const devices = useDataStore((s) => s.devices)
+  const canEdit = canWrite(useAuthStore((s) => s.currentUser?.role))
   const [formOpen, setFormOpen] = useState(false)
 
   return (
@@ -18,9 +21,11 @@ export default function SiteList() {
           <h1 className="text-2xl font-semibold">Standorte</h1>
           <p className="text-sm text-muted-foreground">Alle Standorte im Überblick.</p>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
-          <Plus className="h-4 w-4" /> Standort anlegen
-        </Button>
+        {canEdit && (
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="h-4 w-4" /> Standort anlegen
+          </Button>
+        )}
       </div>
 
       {sites.length === 0 ? (
@@ -28,9 +33,11 @@ export default function SiteList() {
           <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
             <Building2 className="h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">Noch keine Standorte angelegt.</p>
-            <Button size="sm" onClick={() => setFormOpen(true)}>
-              <Plus className="h-4 w-4" /> Ersten Standort anlegen
-            </Button>
+            {canEdit && (
+              <Button size="sm" onClick={() => setFormOpen(true)}>
+                <Plus className="h-4 w-4" /> Ersten Standort anlegen
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (

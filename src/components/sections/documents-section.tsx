@@ -1,16 +1,19 @@
 import { useRef, useState } from 'react'
 import { Download, Eye, FileText, History, Tags, Trash2, Upload } from 'lucide-react'
 import { useDataStore } from '@/store/dataStore'
+import { useAuthStore } from '@/store/authStore'
+import { canWrite } from '@/lib/permissions'
 import { Dropzone } from '@/components/dropzone'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DocumentPreviewDialog } from '@/components/document-preview-dialog'
+import { documentBlobsRepo } from '@/db/repository'
 import { fileToDataUrl, dataUrlToBlob } from '@/lib/files'
 import { formatBytes, formatDateTime, downloadBlob } from '@/lib/utils'
 import { toast } from '@/store/toastStore'
-import type { Doc } from '@/types'
+import { blobKey, type Doc } from '@/types'
 
 interface DocumentsSectionProps {
   siteId?: string
@@ -23,6 +26,7 @@ export function DocumentsSection({ siteId, deviceId, global }: DocumentsSectionP
   const createDocument = useDataStore((s) => s.createDocument)
   const updateDocument = useDataStore((s) => s.updateDocument)
   const deleteDocument = useDataStore((s) => s.deleteDocument)
+  const canEdit = canWrite(useAuthStore((s) => s.currentUser?.role))
 
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [previewDoc, setPreviewDoc] = useState<Doc | undefined>(undefined)
@@ -38,7 +42,7 @@ export function DocumentsSection({ siteId, deviceId, global }: DocumentsSectionP
   async function handleUpload(files: File[]) {
     for (const file of files) {
       const dataUrl = await fileToDataUrl(file)
-      await createDocument({
+      const doc = await createDocument({
         name: file.name,
         tags: [],
         siteId: siteId ?? '',
@@ -48,11 +52,11 @@ export function DocumentsSection({ siteId, deviceId, global }: DocumentsSectionP
             version: 1,
             mimeType: file.type || 'application/octet-stream',
             size: file.size,
-            dataUrl,
             uploadedAt: new Date().toISOString(),
           },
         ],
       })
+      await documentBlobsRepo.put(blobKey(doc.id, 1), dataUrl)
     }
     toast({ title: `${files.length} Datei(en) hochgeladen`, variant: 'success' })
   }
@@ -67,11 +71,11 @@ export function DocumentsSection({ siteId, deviceId, global }: DocumentsSectionP
           version: nextVersion,
           mimeType: file.type || 'application/octet-stream',
           size: file.size,
-          dataUrl,
           uploadedAt: new Date().toISOString(),
         },
       ],
     })
+    await documentBlobsRepo.put(blobKey(doc.id, nextVersion), dataUrl)
     toast({ title: `Version ${nextVersion} hochgeladen`, variant: 'success' })
   }
 
@@ -83,9 +87,14 @@ export function DocumentsSection({ siteId, deviceId, global }: DocumentsSectionP
     updateDocument(doc.id, { tags })
   }
 
-  function download(doc: Doc) {
+  async function download(doc: Doc) {
     const latest = doc.versions[doc.versions.length - 1]
-    downloadBlob(dataUrlToBlob(latest.dataUrl), doc.name)
+    const dataUrl = await documentBlobsRepo.get(blobKey(doc.id, latest.version))
+    if (!dataUrl) {
+      toast({ title: 'Datei nicht gefunden', variant: 'destructive' })
+      return
+    }
+    downloadBlob(dataUrlToBlob(dataUrl), doc.name)
   }
 
   return (
@@ -93,7 +102,7 @@ export function DocumentsSection({ siteId, deviceId, global }: DocumentsSectionP
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Dokumente</h3>
       </div>
-      <Dropzone onFiles={handleUpload} label="PDFs, Bilder, Netzwerkpläne oder Konfigdateien hochladen" />
+      {canEdit && <Dropzone onFiles={handleUpload} label="PDFs, Bilder, Netzwerkpläne oder Konfigdateien hochladen" />}
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-8 text-center">
@@ -122,30 +131,38 @@ export function DocumentsSection({ siteId, deviceId, global }: DocumentsSectionP
                     <Button variant="ghost" size="icon" onClick={() => download(doc)} title="Herunterladen">
                       <Download className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="Neue Version hochladen"
-                      onClick={() => {
-                        setVersionTargetId(doc.id)
-                        versionInputRef.current?.click()
-                      }}
-                    >
-                      <Upload className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteId(doc.id)} title="Löschen">
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {canEdit && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Neue Version hochladen"
+                          onClick={() => {
+                            setVersionTargetId(doc.id)
+                            versionInputRef.current?.click()
+                          }}
+                        >
+                          <Upload className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteId(doc.id)} title="Löschen">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Tags className="h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    defaultValue={doc.tags.join(', ')}
-                    placeholder="Tags, mit Komma getrennt"
-                    className="h-7 text-xs"
-                    onBlur={(e) => updateTags(doc, e.target.value)}
-                  />
+                  {canEdit ? (
+                    <Input
+                      defaultValue={doc.tags.join(', ')}
+                      placeholder="Tags, mit Komma getrennt"
+                      className="h-7 text-xs"
+                      onBlur={(e) => updateTags(doc, e.target.value)}
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">{doc.tags.join(', ') || '—'}</span>
+                  )}
                 </div>
                 {doc.versions.length > 1 && (
                   <details className="text-xs text-muted-foreground">

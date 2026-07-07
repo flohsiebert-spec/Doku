@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Pencil, Trash2, Building2, MapPin, User, Server, ListChecks, History } from 'lucide-react'
 import { useDataStore } from '@/store/dataStore'
+import { useAuthStore } from '@/store/authStore'
+import { canWrite } from '@/lib/permissions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -9,6 +11,11 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { SiteFormDialog } from '@/pages/sites/SiteFormDialog'
 import { RoomsDevicesSection } from '@/components/sections/rooms-devices-section'
 import { IpamSection } from '@/components/sections/ipam-section'
+import { VlansSection } from '@/components/sections/vlans-section'
+import { CablingSection } from '@/components/sections/cabling-section'
+import { DnsSection } from '@/components/sections/dns-section'
+import { CertificatesSection } from '@/components/sections/certificates-section'
+import { RacksSection } from '@/components/sections/racks-section'
 import { NetworkDiagramSection } from '@/components/sections/network-diagram-section'
 import { SiteImagesSection } from '@/components/sections/site-images-section'
 import { CredentialsSection } from '@/components/sections/credentials-section'
@@ -26,6 +33,7 @@ export default function SiteDetail() {
   const notes = useDataStore((s) => s.notes).filter((n) => n.siteId === siteId)
   const changelog = useDataStore((s) => s.changelog).filter((c) => c.siteId === siteId)
   const deleteSite = useDataStore((s) => s.deleteSite)
+  const canEdit = canWrite(useAuthStore((s) => s.currentUser?.role))
 
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -62,14 +70,16 @@ export default function SiteDetail() {
             )}
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setEditOpen(true)}>
-            <Pencil className="h-4 w-4" /> Bearbeiten
-          </Button>
-          <Button variant="outline" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="h-4 w-4 text-destructive" /> Löschen
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-4 w-4" /> Bearbeiten
+            </Button>
+            <Button variant="outline" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4 text-destructive" /> Löschen
+            </Button>
+          </div>
+        )}
       </div>
 
       {site.description && <p className="text-sm text-muted-foreground">{site.description}</p>}
@@ -108,6 +118,11 @@ export default function SiteDetail() {
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="rooms">Räume & Geräte</TabsTrigger>
           <TabsTrigger value="ipam">IP-Adressen</TabsTrigger>
+          <TabsTrigger value="vlans">VLANs</TabsTrigger>
+          <TabsTrigger value="cabling">Verkabelung</TabsTrigger>
+          <TabsTrigger value="dns">DNS</TabsTrigger>
+          <TabsTrigger value="certificates">Zertifikate</TabsTrigger>
+          <TabsTrigger value="racks">Racks</TabsTrigger>
           <TabsTrigger value="diagram">Netzwerkdiagramm</TabsTrigger>
           <TabsTrigger value="images">Bilder</TabsTrigger>
           <TabsTrigger value="credentials">Zugangsdaten</TabsTrigger>
@@ -120,6 +135,21 @@ export default function SiteDetail() {
         </TabsContent>
         <TabsContent value="ipam">
           <IpamSection siteId={site.id} />
+        </TabsContent>
+        <TabsContent value="vlans">
+          <VlansSection siteId={site.id} />
+        </TabsContent>
+        <TabsContent value="cabling">
+          <CablingSection siteId={site.id} />
+        </TabsContent>
+        <TabsContent value="dns">
+          <DnsSection siteId={site.id} />
+        </TabsContent>
+        <TabsContent value="certificates">
+          <CertificatesSection siteId={site.id} />
+        </TabsContent>
+        <TabsContent value="racks">
+          <RacksSection siteId={site.id} />
         </TabsContent>
         <TabsContent value="diagram">
           <NetworkDiagramSection siteId={site.id} />

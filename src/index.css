@@ -126,3 +126,27 @@
     display: none;
   }
 }
+
+@media print {
+  body.qr-print-mode * {
+    visibility: hidden;
+  }
+  body.qr-print-mode #qr-print-area,
+  body.qr-print-mode #qr-print-area * {
+    visibility: visible;
+  }
+  body.qr-print-mode #qr-print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+  body.qr-print-mode .no-print {
+    display: none !important;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}

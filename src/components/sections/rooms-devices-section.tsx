@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Pencil, Trash2, DoorOpen, Server } from 'lucide-react'
 import { useDataStore } from '@/store/dataStore'
+import { useAuthStore } from '@/store/authStore'
+import { canWrite } from '@/lib/permissions'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -20,6 +22,7 @@ export function RoomsDevicesSection({ siteId }: RoomsDevicesSectionProps) {
   const devices = useDataStore((s) => s.devices).filter((d) => d.siteId === siteId)
   const deleteRoom = useDataStore((s) => s.deleteRoom)
   const deleteDevice = useDataStore((s) => s.deleteDevice)
+  const canEdit = canWrite(useAuthStore((s) => s.currentUser?.role))
 
   const [roomFormOpen, setRoomFormOpen] = useState(false)
   const [editingRoom, setEditingRoom] = useState<Room | undefined>(undefined)
@@ -41,28 +44,30 @@ export function RoomsDevicesSection({ siteId }: RoomsDevicesSectionProps) {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Räume & Bereiche</h3>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setEditingRoom(undefined)
-              setRoomFormOpen(true)
-            }}
-          >
-            <Plus className="h-4 w-4" /> Raum
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditingDeviceId(undefined)
-              setDefaultRoomId(undefined)
-              setDeviceFormOpen(true)
-            }}
-          >
-            <Plus className="h-4 w-4" /> Gerät
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setEditingRoom(undefined)
+                setRoomFormOpen(true)
+              }}
+            >
+              <Plus className="h-4 w-4" /> Raum
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingDeviceId(undefined)
+                setDefaultRoomId(undefined)
+                setDeviceFormOpen(true)
+              }}
+            >
+              <Plus className="h-4 w-4" /> Gerät
+            </Button>
+          </div>
+        )}
       </div>
 
       {rooms.length > 0 && (
@@ -71,20 +76,24 @@ export function RoomsDevicesSection({ siteId }: RoomsDevicesSectionProps) {
             <div key={room.id} className="flex items-center gap-1 rounded-md border border-border py-1 pl-2.5 pr-1 text-sm">
               <DoorOpen className="h-3.5 w-3.5 text-muted-foreground" />
               {room.name}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={() => {
-                  setEditingRoom(room)
-                  setRoomFormOpen(true)
-                }}
-              >
-                <Pencil className="h-3 w-3" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setDeleteRoomId(room.id)}>
-                <Trash2 className="h-3 w-3 text-destructive" />
-              </Button>
+              {canEdit && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => {
+                      setEditingRoom(room)
+                      setRoomFormOpen(true)
+                    }}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setDeleteRoomId(room.id)}>
+                    <Trash2 className="h-3 w-3 text-destructive" />
+                  </Button>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -99,7 +108,7 @@ export function RoomsDevicesSection({ siteId }: RoomsDevicesSectionProps) {
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {group.room ? group.room.name : 'Ohne Raum'}
                 </span>
-                {group.room && (
+                {group.room && canEdit && (
                   <Button
                     size="sm"
                     variant="ghost"
@@ -128,22 +137,24 @@ export function RoomsDevicesSection({ siteId }: RoomsDevicesSectionProps) {
                           {device.ipv4 && <Badge variant="secondary">{device.ipv4}</Badge>}
                           {device.model && <span>{device.model}</span>}
                         </div>
-                        <div className="absolute right-2 top-2 flex gap-0.5">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => {
-                              setEditingDeviceId(device.id)
-                              setDeviceFormOpen(true)
-                            }}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setDeleteDeviceId(device.id)}>
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
-                        </div>
+                        {canEdit && (
+                          <div className="absolute right-2 top-2 flex gap-0.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => {
+                                setEditingDeviceId(device.id)
+                                setDeviceFormOpen(true)
+                              }}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setDeleteDeviceId(device.id)}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}

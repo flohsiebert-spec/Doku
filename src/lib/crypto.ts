@@ -80,6 +80,11 @@ export async function deriveKeyFromSaltB64(password: string, saltB64: string): P
   return deriveKey(password, salt)
 }
 
+/** A fresh random base64-encoded PBKDF2 salt, e.g. for one-off backup passwords. */
+export function generateSaltB64(): string {
+  return bufToBase64(crypto.getRandomValues(new Uint8Array(16)).buffer)
+}
+
 /** Sets up a brand-new master password (first run) and returns the derived session key. */
 export async function setupMasterPassword(password: string): Promise<CryptoKey> {
   const salt = crypto.getRandomValues(new Uint8Array(16))
@@ -120,6 +125,46 @@ export async function changeMasterPassword(
   localStorage.setItem(SALT_KEY, bufToBase64(salt.buffer))
   localStorage.setItem(VERIFY_KEY, verifyToken)
   return true
+}
+
+// ---------- Envelope encryption (multi-user data key) ----------
+//
+// A single random "data key" (DK) encrypts all shared secrets (credential passwords,
+// encrypted backups, ...). Each user gets their own PBKDF2 salt and a copy of DK
+// wrapped (AES-GCM) with a key derived from their personal password. Logging in means
+// unwrapping DK with your password; a wrong password simply fails to decrypt (no
+// separate password hash is stored or needed).
+
+export async function generateDataKey(): Promise<CryptoKey> {
+  return crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt'])
+}
+
+export async function wrapDataKeyForUser(
+  dataKey: CryptoKey,
+  password: string,
+): Promise<{ salt: string; wrappedDataKey: string }> {
+  const saltBytes = crypto.getRandomValues(new Uint8Array(16))
+  const salt = bufToBase64(saltBytes.buffer)
+  const userKey = await deriveKey(password, saltBytes)
+  const rawKey = await crypto.subtle.exportKey('raw', dataKey)
+  const wrappedDataKey = await encryptString(bufToBase64(rawKey), userKey)
+  return { salt, wrappedDataKey }
+}
+
+/** Returns the shared data key on success, or null if the password is wrong. */
+export async function unwrapDataKeyForUser(
+  wrappedDataKey: string,
+  salt: string,
+  password: string,
+): Promise<CryptoKey | null> {
+  try {
+    const userKey = await deriveKeyFromSaltB64(password, salt)
+    const rawKeyB64 = await decryptString(wrappedDataKey, userKey)
+    const rawKey = base64ToBuf(rawKeyB64)
+    return await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', true, ['encrypt', 'decrypt'])
+  } catch {
+    return null
+  }
 }
 
 export function generatePassword(options: {

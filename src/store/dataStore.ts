@@ -1,23 +1,35 @@
 import { create } from 'zustand'
 import {
+  cablesRepo,
+  certificatesRepo,
   changelogRepo,
   credentialsRepo,
   devicesRepo,
+  dnsEntriesRepo,
+  documentBlobsRepo,
   documentsRepo,
   notesRepo,
+  racksRepo,
   roomsRepo,
   siteImagesRepo,
   sitesRepo,
+  vlansRepo,
 } from '@/db/repository'
+import { blobKey } from '@/types'
 import type {
+  Cable,
+  Certificate,
   ChangelogEntry,
   Credential,
   Device,
+  DnsEntry,
   Doc,
   Note,
+  Rack,
   Room,
   Site,
   SiteImage,
+  Vlan,
 } from '@/types'
 
 interface DataState {
@@ -30,6 +42,11 @@ interface DataState {
   documents: Doc[]
   notes: Note[]
   changelog: ChangelogEntry[]
+  vlans: Vlan[]
+  cables: Cable[]
+  racks: Rack[]
+  dnsEntries: DnsEntry[]
+  certificates: Certificate[]
 
   loadAll: () => Promise<void>
 
@@ -64,6 +81,26 @@ interface DataState {
     data: Omit<ChangelogEntry, 'id' | 'createdAt' | 'updatedAt'>,
   ) => Promise<ChangelogEntry>
   deleteChangelogEntry: (id: string) => Promise<void>
+
+  createVlan: (data: Omit<Vlan, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Vlan>
+  updateVlan: (id: string, data: Partial<Vlan>) => Promise<void>
+  deleteVlan: (id: string) => Promise<void>
+
+  createCable: (data: Omit<Cable, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Cable>
+  updateCable: (id: string, data: Partial<Cable>) => Promise<void>
+  deleteCable: (id: string) => Promise<void>
+
+  createRack: (data: Omit<Rack, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Rack>
+  updateRack: (id: string, data: Partial<Rack>) => Promise<void>
+  deleteRack: (id: string) => Promise<void>
+
+  createDnsEntry: (data: Omit<DnsEntry, 'id' | 'createdAt' | 'updatedAt'>) => Promise<DnsEntry>
+  updateDnsEntry: (id: string, data: Partial<DnsEntry>) => Promise<void>
+  deleteDnsEntry: (id: string) => Promise<void>
+
+  createCertificate: (data: Omit<Certificate, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Certificate>
+  updateCertificate: (id: string, data: Partial<Certificate>) => Promise<void>
+  deleteCertificate: (id: string) => Promise<void>
 }
 
 export const useDataStore = create<DataState>((set, get) => ({
@@ -76,19 +113,42 @@ export const useDataStore = create<DataState>((set, get) => ({
   documents: [],
   notes: [],
   changelog: [],
+  vlans: [],
+  cables: [],
+  racks: [],
+  dnsEntries: [],
+  certificates: [],
 
   loadAll: async () => {
-    const [sites, rooms, siteImages, devices, credentials, documents, notes, changelog] =
-      await Promise.all([
-        sitesRepo.getAll(),
-        roomsRepo.getAll(),
-        siteImagesRepo.getAll(),
-        devicesRepo.getAll(),
-        credentialsRepo.getAll(),
-        documentsRepo.getAll(),
-        notesRepo.getAll(),
-        changelogRepo.getAll(),
-      ])
+    const [
+      sites,
+      rooms,
+      siteImages,
+      devices,
+      credentials,
+      documents,
+      notes,
+      changelog,
+      vlans,
+      cables,
+      racks,
+      dnsEntries,
+      certificates,
+    ] = await Promise.all([
+      sitesRepo.getAll(),
+      roomsRepo.getAll(),
+      siteImagesRepo.getAll(),
+      devicesRepo.getAll(),
+      credentialsRepo.getAll(),
+      documentsRepo.getAll(),
+      notesRepo.getAll(),
+      changelogRepo.getAll(),
+      vlansRepo.getAll(),
+      cablesRepo.getAll(),
+      racksRepo.getAll(),
+      dnsEntriesRepo.getAll(),
+      certificatesRepo.getAll(),
+    ])
     set({
       loaded: true,
       sites,
@@ -99,6 +159,11 @@ export const useDataStore = create<DataState>((set, get) => ({
       documents,
       notes,
       changelog,
+      vlans,
+      cables,
+      racks,
+      dnsEntries,
+      certificates,
     })
   },
 
@@ -123,6 +188,11 @@ export const useDataStore = create<DataState>((set, get) => ({
       ...get().documents.filter((doc) => doc.siteId === id).map((doc) => documentsRepo.remove(doc.id)),
       ...get().notes.filter((n) => n.siteId === id).map((n) => notesRepo.remove(n.id)),
       ...get().changelog.filter((c) => c.siteId === id).map((c) => changelogRepo.remove(c.id)),
+      ...get().vlans.filter((v) => v.siteId === id).map((v) => vlansRepo.remove(v.id)),
+      ...get().cables.filter((c) => c.siteId === id).map((c) => cablesRepo.remove(c.id)),
+      ...get().racks.filter((r) => r.siteId === id).map((r) => racksRepo.remove(r.id)),
+      ...get().dnsEntries.filter((d) => d.siteId === id).map((d) => dnsEntriesRepo.remove(d.id)),
+      ...get().certificates.filter((c) => c.siteId === id).map((c) => certificatesRepo.remove(c.id)),
     ])
     set({
       sites: get().sites.filter((s) => s.id !== id),
@@ -133,6 +203,11 @@ export const useDataStore = create<DataState>((set, get) => ({
       documents: get().documents.filter((doc) => doc.siteId !== id),
       notes: get().notes.filter((n) => n.siteId !== id),
       changelog: get().changelog.filter((c) => c.siteId !== id),
+      vlans: get().vlans.filter((v) => v.siteId !== id),
+      cables: get().cables.filter((c) => c.siteId !== id),
+      racks: get().racks.filter((r) => r.siteId !== id),
+      dnsEntries: get().dnsEntries.filter((d) => d.siteId !== id),
+      certificates: get().certificates.filter((c) => c.siteId !== id),
     })
   },
 
@@ -181,6 +256,10 @@ export const useDataStore = create<DataState>((set, get) => ({
       ...get().documents.filter((doc) => doc.deviceId === id).map((doc) => documentsRepo.remove(doc.id)),
       ...get().notes.filter((n) => n.deviceId === id).map((n) => notesRepo.remove(n.id)),
       ...get().changelog.filter((c) => c.deviceId === id).map((c) => changelogRepo.remove(c.id)),
+      ...get()
+        .cables.filter((c) => c.fromDeviceId === id || c.toDeviceId === id)
+        .map((c) => cablesRepo.remove(c.id)),
+      ...get().certificates.filter((c) => c.deviceId === id).map((c) => certificatesRepo.remove(c.id)),
     ])
     set({
       devices: get().devices.filter((d) => d.id !== id),
@@ -188,6 +267,8 @@ export const useDataStore = create<DataState>((set, get) => ({
       documents: get().documents.filter((doc) => doc.deviceId !== id),
       notes: get().notes.filter((n) => n.deviceId !== id),
       changelog: get().changelog.filter((c) => c.deviceId !== id),
+      cables: get().cables.filter((c) => c.fromDeviceId !== id && c.toDeviceId !== id),
+      certificates: get().certificates.filter((c) => c.deviceId !== id),
     })
   },
 
@@ -215,7 +296,11 @@ export const useDataStore = create<DataState>((set, get) => ({
     set({ documents: get().documents.map((d) => (d.id === id ? updated : d)) })
   },
   deleteDocument: async (id) => {
+    const doc = get().documents.find((d) => d.id === id)
     await documentsRepo.remove(id)
+    if (doc) {
+      await Promise.all(doc.versions.map((v) => documentBlobsRepo.remove(blobKey(id, v.version))))
+    }
     set({ documents: get().documents.filter((d) => d.id !== id) })
   },
 
@@ -241,5 +326,84 @@ export const useDataStore = create<DataState>((set, get) => ({
   deleteChangelogEntry: async (id) => {
     await changelogRepo.remove(id)
     set({ changelog: get().changelog.filter((c) => c.id !== id) })
+  },
+
+  createVlan: async (data) => {
+    const vlan = await vlansRepo.create(data)
+    set({ vlans: [...get().vlans, vlan] })
+    return vlan
+  },
+  updateVlan: async (id, data) => {
+    const updated = await vlansRepo.update(id, data)
+    set({ vlans: get().vlans.map((v) => (v.id === id ? updated : v)) })
+  },
+  deleteVlan: async (id) => {
+    await vlansRepo.remove(id)
+    await Promise.all(get().cables.filter((c) => c.vlanId === id).map((c) => cablesRepo.update(c.id, { vlanId: '' })))
+    set({
+      vlans: get().vlans.filter((v) => v.id !== id),
+      cables: get().cables.map((c) => (c.vlanId === id ? { ...c, vlanId: '' } : c)),
+    })
+  },
+
+  createCable: async (data) => {
+    const cable = await cablesRepo.create(data)
+    set({ cables: [...get().cables, cable] })
+    return cable
+  },
+  updateCable: async (id, data) => {
+    const updated = await cablesRepo.update(id, data)
+    set({ cables: get().cables.map((c) => (c.id === id ? updated : c)) })
+  },
+  deleteCable: async (id) => {
+    await cablesRepo.remove(id)
+    set({ cables: get().cables.filter((c) => c.id !== id) })
+  },
+
+  createRack: async (data) => {
+    const rack = await racksRepo.create(data)
+    set({ racks: [...get().racks, rack] })
+    return rack
+  },
+  updateRack: async (id, data) => {
+    const updated = await racksRepo.update(id, data)
+    set({ racks: get().racks.map((r) => (r.id === id ? updated : r)) })
+  },
+  deleteRack: async (id) => {
+    await racksRepo.remove(id)
+    const affectedDevices = get().devices.filter((d) => d.rackId === id)
+    await Promise.all(affectedDevices.map((d) => devicesRepo.update(d.id, { rackId: '', rackUnit: null })))
+    set({
+      racks: get().racks.filter((r) => r.id !== id),
+      devices: get().devices.map((d) => (d.rackId === id ? { ...d, rackId: '', rackUnit: null } : d)),
+    })
+  },
+
+  createDnsEntry: async (data) => {
+    const entry = await dnsEntriesRepo.create(data)
+    set({ dnsEntries: [...get().dnsEntries, entry] })
+    return entry
+  },
+  updateDnsEntry: async (id, data) => {
+    const updated = await dnsEntriesRepo.update(id, data)
+    set({ dnsEntries: get().dnsEntries.map((d) => (d.id === id ? updated : d)) })
+  },
+  deleteDnsEntry: async (id) => {
+    await dnsEntriesRepo.remove(id)
+    set({ dnsEntries: get().dnsEntries.filter((d) => d.id !== id) })
+  },
+
+  createCertificate: async (data) => {
+    const cert = await certificatesRepo.create(data)
+    set({ certificates: [...get().certificates, cert] })
+    return cert
+  },
+  updateCertificate: async (id, data) => {
+    const updated = await certificatesRepo.update(id, data)
+    set({ certificates: get().certificates.map((c) => (c.id === id ? updated : c)) })
+  },
+  deleteCertificate: async (id) => {
+    await certificatesRepo.remove(id)
+    set({ certificates: get().certificates.filter((c) => c.id !== id) })
   },
 }))

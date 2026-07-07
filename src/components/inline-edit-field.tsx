@@ -12,9 +12,10 @@ interface InlineEditFieldProps {
   type?: 'text' | 'date' | 'textarea'
   mono?: boolean
   placeholder?: string
+  disabled?: boolean
 }
 
-export function InlineEditField({ label, value, onSave, type = 'text', mono, placeholder }: InlineEditFieldProps) {
+export function InlineEditField({ label, value, onSave, type = 'text', mono, placeholder, disabled }: InlineEditFieldProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
 
@@ -76,6 +77,17 @@ export function InlineEditField({ label, value, onSave, type = 'text', mono, pla
             <X className="h-4 w-4 text-muted-foreground" />
           </Button>
         </div>
+      </div>
+    )
+  }
+
+  if (disabled) {
+    return (
+      <div className="flex flex-col gap-0.5 rounded-md p-1">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className={cn('whitespace-pre-wrap text-sm', mono && 'font-mono', !value && 'text-muted-foreground/60')}>
+          {value || placeholder || '—'}
+        </span>
       </div>
     )
   }

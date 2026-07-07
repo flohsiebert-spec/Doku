@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Plus, KeyRound } from 'lucide-react'
 import { useDataStore } from '@/store/dataStore'
+import { useAuthStore } from '@/store/authStore'
+import { canWrite } from '@/lib/permissions'
 import { Button } from '@/components/ui/button'
 import { CredentialRow } from '@/components/credential-row'
 import { CredentialFormDialog } from '@/pages/credentials/CredentialFormDialog'
@@ -15,6 +17,7 @@ interface CredentialsSectionProps {
 export function CredentialsSection({ siteId, deviceId }: CredentialsSectionProps) {
   const credentials = useDataStore((s) => s.credentials)
   const deleteCredential = useDataStore((s) => s.deleteCredential)
+  const canEdit = canWrite(useAuthStore((s) => s.currentUser?.role))
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Credential | undefined>(undefined)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -27,16 +30,18 @@ export function CredentialsSection({ siteId, deviceId }: CredentialsSectionProps
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Zugangsdaten</h3>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            setEditing(undefined)
-            setFormOpen(true)
-          }}
-        >
-          <Plus className="h-4 w-4" /> Hinzufügen
-        </Button>
+        {canEdit && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setEditing(undefined)
+              setFormOpen(true)
+            }}
+          >
+            <Plus className="h-4 w-4" /> Hinzufügen
+          </Button>
+        )}
       </div>
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-8 text-center">

@@ -11,9 +11,14 @@ import {
   Search,
   LayoutDashboard,
   Plus,
+  FileBarChart,
+  History,
+  Users,
 } from 'lucide-react'
 import { useDataStore } from '@/store/dataStore'
 import { useUiStore } from '@/store/uiStore'
+import { useAuthStore } from '@/store/authStore'
+import { canWrite, canManageUsers } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
 import { SiteFormDialog } from '@/pages/sites/SiteFormDialog'
 
@@ -24,6 +29,8 @@ const quickLinks = [
   { to: '/credentials', label: 'Zugangsdaten', icon: KeyRound },
   { to: '/documents', label: 'Dokumente', icon: FileText },
   { to: '/notes', label: 'Notizen', icon: NotebookText },
+  { to: '/reports', label: 'Reports', icon: FileBarChart },
+  { to: '/audit', label: 'Audit-Log', icon: History },
 ]
 
 export function Sidebar() {
@@ -32,6 +39,9 @@ export function Sidebar() {
   const rooms = useDataStore((s) => s.rooms)
   const collapsed = useUiStore((s) => s.sidebarCollapsed)
   const setCommandPaletteOpen = useUiStore((s) => s.setCommandPaletteOpen)
+  const currentUser = useAuthStore((s) => s.currentUser)
+  const canEdit = canWrite(currentUser?.role)
+  const isAdmin = canManageUsers(currentUser?.role)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [siteFormOpen, setSiteFormOpen] = useState(false)
 
@@ -89,13 +99,15 @@ export function Sidebar() {
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Standorte
         </span>
-        <button
-          onClick={() => setSiteFormOpen(true)}
-          className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-          title="Standort anlegen"
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setSiteFormOpen(true)}
+            className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+            title="Standort anlegen"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-3 pt-1">
@@ -155,6 +167,20 @@ export function Sidebar() {
       </div>
 
       <div className="border-t border-sidebar-border p-2">
+        {isAdmin && (
+          <NavLink
+            to="/users"
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm',
+                isActive ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-accent',
+              )
+            }
+          >
+            <Users className="h-4 w-4" />
+            Benutzerverwaltung
+          </NavLink>
+        )}
         <NavLink
           to="/settings"
           className={({ isActive }) =>

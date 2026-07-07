@@ -16,7 +16,7 @@ export function useAutoLock() {
     function resetTimer() {
       clearTimeout(timeoutId)
       timeoutId = setTimeout(() => {
-        useAuthStore.getState().lock()
+        useAuthStore.getState().logout()
       }, autoLockMinutes * 60 * 1000)
     }
 
