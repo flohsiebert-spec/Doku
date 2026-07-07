@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { downloadBlob } from '@/lib/utils'
 import { dataUrlToBlob } from '@/lib/files'
+import { buildDeviceQrPayload } from '@/lib/qr'
 import type { Device } from '@/types'
 
 interface DeviceQrDialogProps {
@@ -27,8 +28,8 @@ export function DeviceQrDialog({ open, onOpenChange, device }: DeviceQrDialogPro
 
   useEffect(() => {
     if (!open) return
-    QRCode.toDataURL(label, { width: 320, margin: 1 }).then(setDataUrl)
-  }, [open, label])
+    QRCode.toDataURL(buildDeviceQrPayload(device), { width: 320, margin: 1 }).then(setDataUrl)
+  }, [open, device])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

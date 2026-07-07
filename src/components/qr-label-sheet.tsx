@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { Printer, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { buildDeviceQrPayload } from '@/lib/qr'
 import type { Device } from '@/types'
 
 interface QrLabelSheetProps {
@@ -23,8 +24,7 @@ export function QrLabelSheet({ devices, siteName, onClose }: QrLabelSheetProps) 
     async function generate() {
       const entries = await Promise.all(
         devices.map(async (d) => {
-          const label = [d.name, d.ipv4, siteName, d.serialNumber].filter(Boolean).join('\n')
-          const dataUrl = await QRCode.toDataURL(label, { width: 160, margin: 0 })
+          const dataUrl = await QRCode.toDataURL(buildDeviceQrPayload(d, siteName), { width: 160, margin: 0 })
           return [d.id, dataUrl] as const
         }),
       )
