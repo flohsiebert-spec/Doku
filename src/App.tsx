@@ -10,6 +10,8 @@ import { DeviceDetailPage } from '@/pages/device-detail-page'
 import { CredentialsPage } from '@/pages/credentials-page'
 import { DocumentsPage } from '@/pages/documents-page'
 import { NotesPage } from '@/pages/notes-page'
+import { TicketsPage } from '@/pages/tickets-page'
+import { TicketDetailPage } from '@/pages/ticket-detail-page'
 import { SettingsPage } from '@/pages/settings-page'
 
 function App() {
@@ -26,6 +28,8 @@ function App() {
             <Route path="/credentials" element={<CredentialsPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/notes" element={<NotesPage />} />
+            <Route path="/tickets" element={<TicketsPage />} />
+            <Route path="/tickets/:ticketId" element={<TicketDetailPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

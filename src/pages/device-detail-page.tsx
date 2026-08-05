@@ -16,6 +16,8 @@ import { CredentialFormDialog } from '@/components/credentials/credential-form-d
 import { DocumentManager } from '@/components/documents/document-manager'
 import { NoteManager } from '@/components/notes/note-manager'
 import { ChangelogManager } from '@/components/devices/changelog-manager'
+import { TicketList } from '@/components/tickets/ticket-list'
+import { TicketFormDialog } from '@/components/tickets/ticket-form-dialog'
 import { toast } from 'sonner'
 
 export function DeviceDetailPage() {
@@ -26,11 +28,14 @@ export function DeviceDetailPage() {
   const room = useDataStore((s) => s.rooms.find((r) => r.id === device?.roomId))
   const allCredentials = useDataStore((s) => s.credentials)
   const credentials = allCredentials.filter((c) => c.deviceId === deviceId)
+  const allTickets = useDataStore((s) => s.tickets)
+  const tickets = allTickets.filter((t) => t.deviceId === deviceId)
   const removeDevice = useDataStore((s) => s.removeDevice)
 
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [credDialogOpen, setCredDialogOpen] = useState(false)
+  const [ticketDialogOpen, setTicketDialogOpen] = useState(false)
 
   if (!device) return <Navigate to="/devices" replace />
 
@@ -109,6 +114,7 @@ export function DeviceDetailPage() {
           <TabsTrigger value="credentials">Zugangsdaten</TabsTrigger>
           <TabsTrigger value="documents">Dokumente</TabsTrigger>
           <TabsTrigger value="notes">Notizen</TabsTrigger>
+          <TabsTrigger value="tickets">Tickets</TabsTrigger>
           <TabsTrigger value="activity">Aktivität</TabsTrigger>
         </TabsList>
 
@@ -134,6 +140,21 @@ export function DeviceDetailPage() {
           <NoteManager entityType="device" entityId={device.id} />
         </TabsContent>
 
+        <TabsContent value="tickets" className="space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setTicketDialogOpen(true)}>
+              Ticket anlegen
+            </Button>
+          </div>
+          <TicketList tickets={tickets} />
+          <TicketFormDialog
+            open={ticketDialogOpen}
+            onOpenChange={setTicketDialogOpen}
+            defaultSiteId={device.siteId}
+            defaultDeviceId={device.id}
+          />
+        </TabsContent>
+
         <TabsContent value="activity">
           <ChangelogManager deviceId={device.id} siteId={device.siteId} />
         </TabsContent>
@@ -144,7 +165,7 @@ export function DeviceDetailPage() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Gerät löschen"
-        description={`Möchten Sie "${device.name}" wirklich löschen? Zugehörige Zugangsdaten, Dokumente und Notizen werden ebenfalls entfernt.`}
+        description={`Möchten Sie "${device.name}" wirklich löschen? Zugehörige Zugangsdaten, Dokumente, Notizen und Tickets werden ebenfalls entfernt.`}
         onConfirm={async () => {
           await removeDevice(device.id)
           toast.success('Gerät gelöscht.')

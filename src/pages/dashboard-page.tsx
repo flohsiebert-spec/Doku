@@ -1,13 +1,15 @@
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { FileText, KeyRound, MapPin, Plus, Server, StickyNote } from 'lucide-react'
+import { FileText, KeyRound, MapPin, Plus, Server, StickyNote, Ticket as TicketIcon } from 'lucide-react'
 import { useDataStore } from '@/store/useDataStore'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DEVICE_TYPE_LABELS, CHANGELOG_ACTION_LABELS } from '@/types'
 import { EmptyState } from '@/components/common/empty-state'
+import { TicketStatusBadge } from '@/components/tickets/ticket-status-badge'
+import { TicketPriorityBadge } from '@/components/tickets/ticket-priority-badge'
 
 export function DashboardPage() {
   const sites = useDataStore((s) => s.sites)
@@ -16,10 +18,16 @@ export function DashboardPage() {
   const documents = useDataStore((s) => s.documents)
   const notes = useDataStore((s) => s.notes)
   const changelog = useDataStore((s) => s.changelog)
+  const tickets = useDataStore((s) => s.tickets)
 
   const recentChangelog = [...changelog]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 8)
+
+  const openTickets = tickets
+    .filter((t) => t.status !== 'resolved' && t.status !== 'closed')
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, 6)
 
   const deviceTypeCounts = devices.reduce<Record<string, number>>((acc, d) => {
     acc[d.type] = (acc[d.type] ?? 0) + 1
@@ -32,6 +40,7 @@ export function DashboardPage() {
     { label: 'Zugangsdaten', value: credentials.length, icon: KeyRound, to: '/credentials' },
     { label: 'Dokumente', value: documents.length, icon: FileText, to: '/documents' },
     { label: 'Notizen', value: notes.length, icon: StickyNote, to: '/notes' },
+    { label: 'Offene Tickets', value: openTickets.length, icon: TicketIcon, to: '/tickets' },
   ]
 
   return (
@@ -48,7 +57,7 @@ export function DashboardPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {stats.map((stat) => (
           <Link key={stat.label} to={stat.to}>
             <Card className="transition-colors hover:bg-accent/50">
@@ -114,6 +123,43 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle>Offene Tickets</CardTitle>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/tickets">Alle ansehen</Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {openTickets.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Keine offenen Tickets. Gute Arbeit!</p>
+          ) : (
+            <ul className="space-y-2">
+              {openTickets.map((ticket) => (
+                <li key={ticket.id}>
+                  <Link
+                    to={`/tickets/${ticket.id}`}
+                    className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent/50"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{ticket.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {ticket.assignee || 'Nicht zugewiesen'} ·{' '}
+                        {format(new Date(ticket.updatedAt), 'dd.MM.yyyy HH:mm', { locale: de })}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-1.5">
+                      <TicketPriorityBadge priority={ticket.priority} />
+                      <TicketStatusBadge status={ticket.status} />
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       {sites.length === 0 && (
         <EmptyState
