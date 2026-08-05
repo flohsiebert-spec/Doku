@@ -1,5 +1,5 @@
-import type { Device } from '@/types'
-import { DEVICE_TYPE_LABELS } from '@/types'
+import type { Device, Ticket } from '@/types'
+import { DEVICE_TYPE_LABELS, TICKET_CATEGORY_LABELS, TICKET_PRIORITY_LABELS, TICKET_STATUS_LABELS } from '@/types'
 import { getAllSites } from '@/db/sites'
 import { getAllRooms } from '@/db/rooms'
 import { getAllDevices } from '@/db/devices'
@@ -7,6 +7,7 @@ import { getAllCredentials } from '@/db/credentials'
 import { getAllDocuments } from '@/db/documents'
 import { getAllNotes } from '@/db/notes'
 import { getAllChangelog } from '@/db/changelog'
+import { getAllTickets } from '@/db/tickets'
 import { getAppSettings, putAppSettings } from '@/db/settings'
 import { getDb } from '@/db/db'
 
@@ -22,7 +23,7 @@ function downloadBlob(content: BlobPart, mimeType: string, fileName: string) {
   URL.revokeObjectURL(url)
 }
 
-const BACKUP_VERSION = 1
+const BACKUP_VERSION = 2
 
 export interface BackupData {
   version: number
@@ -34,20 +35,23 @@ export interface BackupData {
   documents: Awaited<ReturnType<typeof getAllDocuments>>
   notes: Awaited<ReturnType<typeof getAllNotes>>
   changelog: Awaited<ReturnType<typeof getAllChangelog>>
+  tickets: Awaited<ReturnType<typeof getAllTickets>>
   settings: Awaited<ReturnType<typeof getAppSettings>>
 }
 
 export async function buildBackup(): Promise<BackupData> {
-  const [sites, rooms, devices, credentials, documents, notes, changelog, settings] = await Promise.all([
-    getAllSites(),
-    getAllRooms(),
-    getAllDevices(),
-    getAllCredentials(),
-    getAllDocuments(),
-    getAllNotes(),
-    getAllChangelog(),
-    getAppSettings(),
-  ])
+  const [sites, rooms, devices, credentials, documents, notes, changelog, tickets, settings] =
+    await Promise.all([
+      getAllSites(),
+      getAllRooms(),
+      getAllDevices(),
+      getAllCredentials(),
+      getAllDocuments(),
+      getAllNotes(),
+      getAllChangelog(),
+      getAllTickets(),
+      getAppSettings(),
+    ])
   return {
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
@@ -58,6 +62,7 @@ export async function buildBackup(): Promise<BackupData> {
     documents,
     notes,
     changelog,
+    tickets,
     settings,
   }
 }
@@ -86,6 +91,7 @@ export async function restoreBackup(data: BackupData): Promise<void> {
     'documents',
     'notes',
     'changelog',
+    'tickets',
   ] as const
   const tx = db.transaction(storeNames, 'readwrite')
   for (const name of storeNames) {
@@ -164,4 +170,50 @@ export function downloadDevicesCsv(
   const csv = [headers.join(';'), ...rows].join('\n')
   const dateStr = new Date().toISOString().slice(0, 10)
   downloadBlob('﻿' + csv, 'text/csv;charset=utf-8', `geraete-${dateStr}.csv`)
+}
+
+export function downloadTicketsCsv(
+  tickets: Ticket[],
+  siteNameById: Map<string, string>,
+  deviceNameById: Map<string, string>,
+): void {
+  const headers = [
+    'Titel',
+    'Status',
+    'Priorität',
+    'Kategorie',
+    'Standort',
+    'Gerät',
+    'Melder',
+    'Zugewiesen an',
+    'Fällig am',
+    'Angelegt',
+    'Aktualisiert',
+    'Gelöst am',
+    'Beschreibung',
+  ]
+
+  const rows = tickets.map((t) =>
+    [
+      t.title,
+      TICKET_STATUS_LABELS[t.status],
+      TICKET_PRIORITY_LABELS[t.priority],
+      TICKET_CATEGORY_LABELS[t.category],
+      t.siteId ? (siteNameById.get(t.siteId) ?? '') : '',
+      t.deviceId ? (deviceNameById.get(t.deviceId) ?? '') : '',
+      t.requester,
+      t.assignee,
+      t.dueDate,
+      t.createdAt,
+      t.updatedAt,
+      t.resolvedAt ?? '',
+      t.description,
+    ]
+      .map((v) => csvEscape(String(v ?? '')))
+      .join(';'),
+  )
+
+  const csv = [headers.join(';'), ...rows].join('\n')
+  const dateStr = new Date().toISOString().slice(0, 10)
+  downloadBlob('﻿' + csv, 'text/csv;charset=utf-8', `tickets-${dateStr}.csv`)
 }

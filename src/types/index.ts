@@ -181,3 +181,60 @@ export interface AppSettings {
   passwordSaltB64: string
   passwordCheckPayload: EncryptedPayload | null
 }
+
+export const TICKET_STATUSES = ['open', 'in_progress', 'waiting', 'resolved', 'closed'] as const
+export type TicketStatus = (typeof TICKET_STATUSES)[number]
+
+export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
+  open: 'Offen',
+  in_progress: 'In Bearbeitung',
+  waiting: 'Wartet auf Rückmeldung',
+  resolved: 'Gelöst',
+  closed: 'Geschlossen',
+}
+
+export const TICKET_PRIORITIES = ['low', 'medium', 'high', 'critical'] as const
+export type TicketPriority = (typeof TICKET_PRIORITIES)[number]
+
+export const TICKET_PRIORITY_LABELS: Record<TicketPriority, string> = {
+  low: 'Niedrig',
+  medium: 'Mittel',
+  high: 'Hoch',
+  critical: 'Kritisch',
+}
+
+export const TICKET_CATEGORIES = ['hardware', 'software', 'network', 'access', 'other'] as const
+export type TicketCategory = (typeof TICKET_CATEGORIES)[number]
+
+export const TICKET_CATEGORY_LABELS: Record<TicketCategory, string> = {
+  hardware: 'Hardware',
+  software: 'Software',
+  network: 'Netzwerk',
+  access: 'Zugriff & Berechtigungen',
+  other: 'Sonstiges',
+}
+
+export interface TicketComment {
+  id: string
+  message: string
+  author: string
+  createdAt: string
+}
+
+export interface Ticket {
+  id: string
+  title: string
+  description: string
+  status: TicketStatus
+  priority: TicketPriority
+  category: TicketCategory
+  siteId: string | null
+  deviceId: string | null
+  requester: string
+  assignee: string
+  dueDate: string
+  comments: TicketComment[]
+  createdAt: string
+  updatedAt: string
+  resolvedAt: string | null
+}

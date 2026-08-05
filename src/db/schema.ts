@@ -8,6 +8,7 @@ import type {
   Note,
   Room,
   Site,
+  Ticket,
 } from '@/types'
 
 export interface DokuDB extends DBSchema {
@@ -45,6 +46,11 @@ export interface DokuDB extends DBSchema {
     key: string
     value: ChangelogEntry
     indexes: { deviceId: string; siteId: string }
+  }
+  tickets: {
+    key: string
+    value: Ticket
+    indexes: { siteId: string; deviceId: string; status: string }
   }
   settings: {
     key: string

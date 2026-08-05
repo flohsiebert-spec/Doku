@@ -10,6 +10,8 @@ import type {
   NoteEntityType,
   Room,
   Site,
+  Ticket,
+  TicketStatus,
 } from '@/types'
 import { newId, nowIso } from '@/lib/utils'
 import { getAllSites, putSite, deleteSite as dbDeleteSite } from '@/db/sites'
@@ -27,6 +29,7 @@ import {
   putChangelogEntry,
   deleteChangelogEntry as dbDeleteChangelogEntry,
 } from '@/db/changelog'
+import { getAllTickets, putTicket, deleteTicket as dbDeleteTicket } from '@/db/tickets'
 import { useUIStore } from './useUIStore'
 
 interface DataState {
@@ -38,6 +41,7 @@ interface DataState {
   documents: DocumentRecord[]
   notes: Note[]
   changelog: ChangelogEntry[]
+  tickets: Ticket[]
 
   loadAll: () => Promise<void>
 
@@ -93,6 +97,17 @@ interface DataState {
     technician?: string
   }) => Promise<void>
   removeChangelogEntry: (id: string) => Promise<void>
+
+  createTicket: (
+    input: Omit<Ticket, 'id' | 'comments' | 'createdAt' | 'updatedAt' | 'resolvedAt'>,
+  ) => Promise<Ticket>
+  updateTicket: (
+    id: string,
+    input: Partial<Omit<Ticket, 'id' | 'comments' | 'createdAt'>>,
+  ) => Promise<void>
+  removeTicket: (id: string) => Promise<void>
+  addTicketComment: (id: string, message: string, author?: string) => Promise<void>
+  removeTicketComment: (id: string, commentId: string) => Promise<void>
 }
 
 function technician(explicit?: string): string {
@@ -108,18 +123,21 @@ export const useDataStore = create<DataState>((set, get) => ({
   documents: [],
   notes: [],
   changelog: [],
+  tickets: [],
 
   loadAll: async () => {
-    const [sites, rooms, devices, credentials, documents, notes, changelog] = await Promise.all([
-      getAllSites(),
-      getAllRooms(),
-      getAllDevices(),
-      getAllCredentials(),
-      getAllDocuments(),
-      getAllNotes(),
-      getAllChangelog(),
-    ])
-    set({ loaded: true, sites, rooms, devices, credentials, documents, notes, changelog })
+    const [sites, rooms, devices, credentials, documents, notes, changelog, tickets] =
+      await Promise.all([
+        getAllSites(),
+        getAllRooms(),
+        getAllDevices(),
+        getAllCredentials(),
+        getAllDocuments(),
+        getAllNotes(),
+        getAllChangelog(),
+        getAllTickets(),
+      ])
+    set({ loaded: true, sites, rooms, devices, credentials, documents, notes, changelog, tickets })
   },
 
   createSite: async (input) => {
@@ -159,6 +177,9 @@ export const useDataStore = create<DataState>((set, get) => ({
       ...state.changelog
         .filter((c) => c.siteId === id || (c.deviceId && deviceIds.includes(c.deviceId)))
         .map((c) => dbDeleteChangelogEntry(c.id)),
+      ...state.tickets
+        .filter((t) => t.siteId === id || (t.deviceId && deviceIds.includes(t.deviceId)))
+        .map((t) => dbDeleteTicket(t.id)),
     ])
 
     set({
@@ -176,6 +197,9 @@ export const useDataStore = create<DataState>((set, get) => ({
       ),
       changelog: state.changelog.filter(
         (c) => c.siteId !== id && !(c.deviceId && deviceIds.includes(c.deviceId)),
+      ),
+      tickets: state.tickets.filter(
+        (t) => t.siteId !== id && !(t.deviceId && deviceIds.includes(t.deviceId)),
       ),
     })
   },
@@ -242,6 +266,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       ...state.documents.filter((d) => d.entityId === id).map((d) => dbDeleteDocument(d.id)),
       ...state.notes.filter((n) => n.entityId === id).map((n) => dbDeleteNote(n.id)),
       ...state.changelog.filter((c) => c.deviceId === id).map((c) => dbDeleteChangelogEntry(c.id)),
+      ...state.tickets.filter((t) => t.deviceId === id).map((t) => dbDeleteTicket(t.id)),
     ])
     set({
       devices: state.devices.filter((d) => d.id !== id),
@@ -249,6 +274,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       documents: state.documents.filter((d) => d.entityId !== id),
       notes: state.notes.filter((n) => n.entityId !== id),
       changelog: state.changelog.filter((c) => c.deviceId !== id),
+      tickets: state.tickets.filter((t) => t.deviceId !== id),
     })
   },
 
@@ -367,6 +393,75 @@ export const useDataStore = create<DataState>((set, get) => ({
   removeChangelogEntry: async (id) => {
     await dbDeleteChangelogEntry(id)
     set({ changelog: get().changelog.filter((c) => c.id !== id) })
+  },
+
+  createTicket: async (input) => {
+    const now = nowIso()
+    const ticket: Ticket = {
+      ...input,
+      id: newId(),
+      comments: [],
+      resolvedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    }
+    await putTicket(ticket)
+    set({ tickets: [...get().tickets, ticket] })
+    return ticket
+  },
+
+  updateTicket: async (id, input) => {
+    const existing = get().tickets.find((t) => t.id === id)
+    if (!existing) return
+    const nextStatus = (input.status ?? existing.status) as TicketStatus
+    const justResolved =
+      (nextStatus === 'resolved' || nextStatus === 'closed') &&
+      existing.status !== 'resolved' &&
+      existing.status !== 'closed'
+    const backToOpen = nextStatus !== 'resolved' && nextStatus !== 'closed'
+    const updated: Ticket = {
+      ...existing,
+      ...input,
+      resolvedAt: justResolved ? nowIso() : backToOpen ? null : existing.resolvedAt,
+      updatedAt: nowIso(),
+    }
+    await putTicket(updated)
+    set({ tickets: get().tickets.map((t) => (t.id === id ? updated : t)) })
+  },
+
+  removeTicket: async (id) => {
+    await dbDeleteTicket(id)
+    set({ tickets: get().tickets.filter((t) => t.id !== id) })
+  },
+
+  addTicketComment: async (id, message, author) => {
+    const existing = get().tickets.find((t) => t.id === id)
+    if (!existing || !message.trim()) return
+    const comment = {
+      id: newId(),
+      message: message.trim(),
+      author: technician(author),
+      createdAt: nowIso(),
+    }
+    const updated: Ticket = {
+      ...existing,
+      comments: [...existing.comments, comment],
+      updatedAt: nowIso(),
+    }
+    await putTicket(updated)
+    set({ tickets: get().tickets.map((t) => (t.id === id ? updated : t)) })
+  },
+
+  removeTicketComment: async (id, commentId) => {
+    const existing = get().tickets.find((t) => t.id === id)
+    if (!existing) return
+    const updated: Ticket = {
+      ...existing,
+      comments: existing.comments.filter((c) => c.id !== commentId),
+      updatedAt: nowIso(),
+    }
+    await putTicket(updated)
+    set({ tickets: get().tickets.map((t) => (t.id === id ? updated : t)) })
   },
 }))
 

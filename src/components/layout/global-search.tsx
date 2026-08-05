@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, KeyRound, MapPin, Search, Server, StickyNote } from 'lucide-react'
+import { FileText, KeyRound, MapPin, Search, Server, StickyNote, Ticket } from 'lucide-react'
 import { useDataStore } from '@/store/useDataStore'
 import { Input } from '@/components/ui/input'
-import { DEVICE_TYPE_LABELS } from '@/types'
+import { DEVICE_TYPE_LABELS, TICKET_STATUS_LABELS } from '@/types'
 import { cn } from '@/lib/utils'
 
 interface SearchResult {
@@ -24,6 +24,7 @@ export function GlobalSearch() {
   const credentials = useDataStore((s) => s.credentials)
   const documents = useDataStore((s) => s.documents)
   const notes = useDataStore((s) => s.notes)
+  const tickets = useDataStore((s) => s.tickets)
 
   const results = useMemo<SearchResult[]>(() => {
     const q = query.trim().toLowerCase()
@@ -76,8 +77,23 @@ export function GlobalSearch() {
       }
     }
 
+    for (const ticket of tickets) {
+      const haystack = [ticket.title, ticket.description, ticket.requester, ticket.assignee]
+        .join(' ')
+        .toLowerCase()
+      if (haystack.includes(q)) {
+        out.push({
+          id: ticket.id,
+          icon: Ticket,
+          label: ticket.title,
+          sublabel: `Ticket · ${TICKET_STATUS_LABELS[ticket.status]}`,
+          path: `/tickets/${ticket.id}`,
+        })
+      }
+    }
+
     return out.slice(0, 10)
-  }, [query, sites, devices, credentials, documents, notes])
+  }, [query, sites, devices, credentials, documents, notes, tickets])
 
   const open = focused && query.trim().length >= 2
 

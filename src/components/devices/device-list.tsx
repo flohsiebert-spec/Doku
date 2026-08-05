@@ -119,7 +119,7 @@ export function DeviceList({ devices, showSite = false }: DeviceListProps) {
         open={!!deleteDevice}
         onOpenChange={(o) => !o && setDeleteDevice(null)}
         title="Gerät löschen"
-        description={`Möchten Sie "${deleteDevice?.name}" wirklich löschen? Zugehörige Zugangsdaten, Dokumente und Notizen werden ebenfalls entfernt.`}
+        description={`Möchten Sie "${deleteDevice?.name}" wirklich löschen? Zugehörige Zugangsdaten, Dokumente, Notizen und Tickets werden ebenfalls entfernt.`}
         onConfirm={async () => {
           if (deleteDevice) {
             await removeDevice(deleteDevice.id)

@@ -18,6 +18,8 @@ import { DocumentManager } from '@/components/documents/document-manager'
 import { NoteManager } from '@/components/notes/note-manager'
 import { CredentialList } from '@/components/credentials/credential-list'
 import { CredentialFormDialog } from '@/components/credentials/credential-form-dialog'
+import { TicketList } from '@/components/tickets/ticket-list'
+import { TicketFormDialog } from '@/components/tickets/ticket-form-dialog'
 import { toast } from 'sonner'
 
 export function SiteDetailPage() {
@@ -31,15 +33,18 @@ export function SiteDetailPage() {
   const allDevices = useDataStore((s) => s.devices)
   const allCredentials = useDataStore((s) => s.credentials)
   const allChangelog = useDataStore((s) => s.changelog)
+  const allTickets = useDataStore((s) => s.tickets)
   const devices = allDevices.filter((d) => d.siteId === siteId)
   const credentials = allCredentials.filter((c) => c.siteId === siteId)
   const changelog = allChangelog.filter((c) => c.siteId === siteId)
+  const tickets = allTickets.filter((t) => t.siteId === siteId)
   const removeSite = useDataStore((s) => s.removeSite)
 
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deviceDialogOpen, setDeviceDialogOpen] = useState(false)
   const [credDialogOpen, setCredDialogOpen] = useState(false)
+  const [ticketDialogOpen, setTicketDialogOpen] = useState(false)
 
   if (!site) return <Navigate to="/sites" replace />
 
@@ -131,6 +136,7 @@ export function SiteDetailPage() {
           <TabsTrigger value="images">Bilder</TabsTrigger>
           <TabsTrigger value="documents">Dokumente</TabsTrigger>
           <TabsTrigger value="notes">Notizen</TabsTrigger>
+          <TabsTrigger value="tickets">Tickets</TabsTrigger>
         </TabsList>
 
         <TabsContent value="rooms">
@@ -197,6 +203,20 @@ export function SiteDetailPage() {
         <TabsContent value="notes">
           <NoteManager entityType="site" entityId={site.id} />
         </TabsContent>
+
+        <TabsContent value="tickets" className="space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setTicketDialogOpen(true)}>
+              <Plus /> Ticket anlegen
+            </Button>
+          </div>
+          <TicketList tickets={tickets} />
+          <TicketFormDialog
+            open={ticketDialogOpen}
+            onOpenChange={setTicketDialogOpen}
+            defaultSiteId={site.id}
+          />
+        </TabsContent>
       </Tabs>
 
       <SiteFormDialog open={editOpen} onOpenChange={setEditOpen} site={site} />
@@ -204,7 +224,7 @@ export function SiteDetailPage() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Standort löschen"
-        description={`Möchten Sie "${site.name}" wirklich löschen? Alle Räume, Geräte, Zugangsdaten, Dokumente und Notizen dieses Standorts werden ebenfalls gelöscht.`}
+        description={`Möchten Sie "${site.name}" wirklich löschen? Alle Räume, Geräte, Zugangsdaten, Dokumente, Notizen und Tickets dieses Standorts werden ebenfalls gelöscht.`}
         onConfirm={async () => {
           await removeSite(site.id)
           toast.success('Standort gelöscht.')

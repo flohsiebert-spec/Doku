@@ -9,6 +9,7 @@ import {
   Server,
   Settings,
   StickyNote,
+  Ticket,
 } from 'lucide-react'
 import { useUIStore } from '@/store/useUIStore'
 import { cn } from '@/lib/utils'
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { to: '/credentials', label: 'Zugangsdaten', icon: KeyRound },
   { to: '/documents', label: 'Dokumente', icon: FileText },
   { to: '/notes', label: 'Notizen', icon: StickyNote },
+  { to: '/tickets', label: 'Tickets', icon: Ticket },
 ]
 
 export function Sidebar() {
